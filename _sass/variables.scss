@@ -1,0 +1,50 @@
+/*
+   Colors
+*/
+
+$white          : #fff;
+$black          : #111;
+$whalegray      : #333333;
+$whaleoffgray   : #444444;
+$whalelightgray : #BABAB1;
+$whaleblue      : #006999;
+$border-color   : $whalelightgray;
+
+/* buttons */
+$primary      : $black;
+$success      : #5cb85c;
+$warning      : #dd8338;
+$danger       : #C64537;
+$info         : #308cbc;
+
+$heading-font: 'nexa bold', sans-serif;
+
+@mixin font($size) {
+  font-size: 0px + $size;
+  font-size: 0rem + $size / $doc-font-size;
+  line-height: 0 + round($doc-line-height / $size*10000) / 10000;
+}
+@mixin rounded($radius:4px) {
+  border-radius : $radius;
+}
+
+$doc-font-size: 16;
+$doc-line-height: 26;
+$code-font: Monaco, "Courier New", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", monospace;
+$indent-var: 0rem + ($doc-line-height / $doc-font-size);
+
+// tag highlights
+
+.post-category-first-post {
+    background: $whalelightgray;
+}
+
+/*
+   Breakpoints
+   ========================================================================== */
+
+$micro            : "only screen and (min-width: 30em)";
+$small            : "only screen and (min-width: 37.5em)";
+$medium           : "only screen and (min-width: 48em)";
+$large            : "only screen and (min-width: 62em)";
+$x-large          : "only screen and (min-width: 86.375em)";

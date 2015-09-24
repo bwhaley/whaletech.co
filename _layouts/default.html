@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+
+  {% include head.html %}
+
+  <body>
+
+    <!--<div id="layout" class="pure-g" style="margin:0; height: 100%">-->
+    <div id="layout" class="pure-g">
+        {% include sidebar.html %}
+
+        <div class="content pure-u-1 pure-u-md-3-4">
+            <div>
+                {{ content }}
+
+                {% include footer.html %}
+            </div>
+        </div>
+    </div>
+
+  </body>
+
+</html>

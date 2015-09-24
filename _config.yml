@@ -1,0 +1,14 @@
+# Site settings
+title: WhaleTech
+email: web@whaletech.co
+description: A web technology consultancy.
+logo: whaletech.png
+baseurl: "" # the subpath of your site, e.g. /blog/
+url:
+
+# Build settings
+markdown: kramdown
+highlighter: pygments
+
+tag_page_layout: tag_page
+tag_page_dir: tag

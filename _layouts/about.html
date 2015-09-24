@@ -1,0 +1,39 @@
+---
+layout: default
+---
+<p>WhaleTech works with an assortment of businesses, from stealth mode startups to the Fortune 500, on modern web application infrastructure and the security thereof.</p>
+
+<p>Partial list of consulting services:</p>
+<ul>
+<li> AWS infrastructure design, implementation</li>
+<li> Configuration management systems</li>
+<li> Continuous delivery pipelines</li>
+<li> Immutable infrastructure</li>
+<li> Software delivery via containers</li>
+<li> Monitoring, visualization, and alerting</li>
+<li> Vulnerability assessments and penetration testing</li>
+<li> API design and implementation</li>
+</ul>
+<p>Inquire via email or social media.</p>
+{% if site.data.social %}
+   {% for social in site.data.social %}
+     <a href="{{ social.href }}"><i class="{{ social.classes }}"></i></a>
+   {% endfor %}
+{% endif %}
+
+ <p class="post-meta">GPG: <a href="http://pgp.mit.edu/pks/lookup?op=get&search=0xF1A66DFBD42353FD">04BD CF6E 0BDD 3410 B6F8  54CA F1A6 6DFB D423 53FD</a></p>
+
+<h3>Bio</h3>
+<p>Ben Whaley is the founder of WhaleTech, a consulting company focused on cloud architecture, security, and automation. He was a core member of the team that built Apigee Edge, a globally-distributed API management platform built on AWS. He helped build and operate the back-end services for Anki, a robotics and artificial intelligence company.</p>
+
+<p>Ben is <a href="https://aws.amazon.com/heroes/usa/ben-whaley/">recognized by AWS</a> in the Community Heroes program. Ben is a co-author of the UNIX & Linux System Administration Handbook and other educational works on system administration. He maintains the CISSP credential, and was previously an RHCE and a PCI QSA.</p>
+
+<h3>Publications</h3>
+<ul>
+<li><a href="http://admin.com">UNIX and Linux System Administration Handbook</a>
+<li><a href="https://media.licdn.com/mpr/mpr/shrinknp_400_400/p/5/005/09c/3b3/224a0bd.jpg">Linux System Administration LiveLessons Videos</a>
+<li><a href="http://click.linksynergy.com/link?id=V8AbX0rxSNw&offerid=163217.2197849&type=2&murl=http%3A%2F%2Fwww.informit.com%2Ftitle%2F9780133927627">Linux Web Operations LiveLessons Videos
+<li><a href="">Securing Enterprise Software, [IN]SECURE Magazine ISSUE 15</a></li>
+</ul>
+
+This site built using <a href="https://jekyllrb.com">Jekyll</a>, <a href="http://purecss.io/")>Pure.css</a>, the <a href="https://github.com/martin308/left-stripe">Left Stripe theme</a>, and AWS S3.

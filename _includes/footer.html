@@ -1,0 +1,7 @@
+<div class="footer">
+{% if site.data.social %}
+   {% for social in site.data.social %}
+     <a href="{{ social.href }}"><i class="{{ social.classes-small }}"></i></a>
+   {% endfor %}
+{% endif %}
+</div>
