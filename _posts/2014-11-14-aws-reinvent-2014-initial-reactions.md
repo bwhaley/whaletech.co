@@ -7,11 +7,18 @@ modified: 2014-11-14
 comments: true
 tags: [containers, ecs, reinvent, aws]
 ---
-[![reinvent-large.png](https://d23f6h5jpj26xu.cloudfront.net/idj0iq8ijrnulq_small.png)](http://img.svbtle.com/idj0iq8ijrnulq.png)
+<br/>
+<figure>
+<a href="http://i.imgur.com/wKrYxQb.png"><img src="http://i.imgur.com/wKrYxQb.png"></a>
+</figure>
+
 Another re:Invent in the bag! I'm beginning to digest the new services and trends I saw after listening to the keynotes, walking the exhibition hall floor, and chatting with what feels like all 13,000 people that attended. Here are my immediate impressions of the two most-hyped services since that's all I have time for now.
 
 ##[EC2 Container Service](https://aws.amazon.com/ecs/)
-[![AmazonEC2ContainerService_Banner.png](https://d23f6h5jpj26xu.cloudfront.net/oxdybpbl3n0fbw_small.png)](http://img.svbtle.com/oxdybpbl3n0fbw.png)
+
+<figure>
+<a href="http://i.imgur.com/PDj3uc4.png"><img src="http://i.imgur.com/PDj3uc4.png"></a>
+</figure>
 You might have heard about this thing called Docker that's been going around. As expected, Amazon's container service is built around Docker and the Docker Hub and promises a nice cluster abstraction to running containers on a fleet of EC2 instances. It even comes complete with an awesome spaceport for moving containers around! Docker CEO Ben Goleb went to bat on stage with Werner pronouncing a deep integration and partnership with Amazon.
 
 First impressions are challenging here since the service basically isn't ready yet. It's available as a preview only, and previews aren't being given lightly. My impression is that the AMIs aren't available, there isn't yet integration with other services like ELB, and customizations are basic at best. Barb Darrow over at Gigaom is [predictably underwhelmed](https://gigaom.com/2014/11/14/top-5-lessons-learned-at-aws-reinvent/) by the new service offering, calling it "no Kubernetes".
