@@ -134,10 +134,10 @@ h3 a:hover, a:active {
 //    padding-bottom: 2em;
 }
 .post-title {
-    font-family: nexa;
-    font-weight: bold;
+    font-family: Sans-Serif;
+    font-weight: lighter;
     font-size: 2em;
-    color: #222;
+    color: $black;
     margin-bottom: 0.2em;
 }
 .post-avatar {
@@ -289,6 +289,8 @@ blockquote p {
 /* Button Styles */
 
 
+
+/* Mailchimp email subscripton form style */
 @media (max-width: 768px) {
   /* positions input field and button underneath each other with 100% width for tablet and mobile */
 
