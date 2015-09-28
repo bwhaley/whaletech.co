@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Extending boto3"
-excerpt: "Using the event system to add an attribute to boto3 SecurityGroup objects, making it easier to interact with security group rules."
+excerpt: "Using the event system to add an attribute to boto3 SecurityGroup objects, making it easier to interact with rules."
 modified: 2015-09-25
 comments: true
 tags: [aws, boto3, python]
