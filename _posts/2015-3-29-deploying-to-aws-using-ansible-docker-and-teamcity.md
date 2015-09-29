@@ -6,7 +6,7 @@ modified: 2015-03-29
 tags: [sqs, ansible, docker, vpc]
 comments: true
 ---
-It hasn't even been a full year yet since [my last post on continuous deployment](http://blog.bwhaley.com/continuous-deployment-with-ansible-and-docker) and I've already reimplemented a more robust system. This post covers the challenges I had with that previous iteration, then the design and implementation of the new deployment platform. I hope you'll find it useful.
+It hasn't even been a full year yet since [my last post on continuous deployment](https://www.whaletech.co/2014/07/20/continuous-deployment-with-ansible-and-docker.html) and I've already reimplemented a more robust system. This post covers the challenges I had with that previous iteration, then the design and implementation of the new deployment platform. I hope you'll find it useful.
 
 ### Take One
 
@@ -19,7 +19,7 @@ My last attempt at building a CD system with Ansible, Docker and Teamcity has a 
 For these reasons I opted to try a new approach. A sort of custom, naive implementation of a self-sufficient scheduler.
 
 ### Building Blocks
-I like to say that security and administration start from the network. I had already [designed a new network](http://blog.bwhaley.com/reference-vpc-architecture) to remove the duplication and overhead incurred by the micronet concept. If you read and understand that post this one will make a lot more sense. In the new network I had a single bastion host in a dedicated management network that is peered to separate test and production networks. The bastion is the only point of entry to the environment other than the public facing web servers or ELBs, and this made it simpler to interact with the environment externally.
+I like to say that security and administration start from the network. I had already [designed a new network](https://www.whaletech.co/2014/10/02/reference-vpc-architecture.html) to remove the duplication and overhead incurred by the micronet concept. If you read and understand that post this one will make a lot more sense. In the new network I had a single bastion host in a dedicated management network that is peered to separate test and production networks. The bastion is the only point of entry to the environment other than the public facing web servers or ELBs, and this made it simpler to interact with the environment externally.
 
 I considered tools such as [Netflix's Asgard](https://github.com/Netflix/asgard) that release new code by replacing launch configurations and autoscale groups (read up [here](http://docs.aws.amazon.com/AutoScaling/latest/DeveloperGuide/GettingStartedTutorial.html) if you don't know about this). This approach is appealing but I wasn't excited about introducing a complex java application that I didn't understand (I'm sure the Netflix folks out there would beg to differ). So rather than implement Asgard, I set about recreating some of its functionality using Ansible.
 
@@ -41,7 +41,7 @@ The build artifact is a Docker image. There is a private repository on the Docke
 Visually, the process looks something like this:
 
 <figure class="half">
-<img src="http://i.imgur.com/ZfqHLU9.jpg">
+<img src="https://i.imgur.com/ZfqHLU9.jpg">
 </figure>
 
 The Docker registry API exposes the available tags associated with a repo. This bash snippet will check if an image with a given SHA already exists. The `%var%` variables are TeamCity syntax for build parameters.
@@ -77,7 +77,7 @@ EC2 user data is a method to initialize instances. In chef or puppet, it might b
 I didn't want to have ansible on each instance. I use ansible vault to store sensitive config data like database credentials and API keys, and I didn't want the passphrase or any other secrets baked in to the image. So my bootstrap process is a little different. The user data for each instance in an autoscale group drops a message in an SQS queue indicating its IP address, service, environment, and Docker tag. A daemon on another host (I use the bastion) polls this queue, and runs Ansible on the instance when it boots. Like this:
 
 <figure class="half">
-<img src="http://i.imgur.com/KLd4U4U.jpg">
+<img src="https://i.imgur.com/KLd4U4U.jpg">
 </figure>
 
 This scales nicely, avoids keeping any sort of secret on the instances themselves, and can support many different services simultaneously. The `ansible-playbook ... myapp.yml` step can do all the necessary steps to provision an instance. In my case, this means pulling and running a docker image. It might mean running a few containers, or adding users and configuring NTP, or any number of other things. But the instance itself never needs ansible installed, nor any git repositories or private keys.

@@ -16,7 +16,7 @@ In mid January I notified Anki of my intention to begin consulting full time and
 
 I created a sole proprietor LLC called *Whale Tech* in order to protect my personal interests. I ended up with a California LLC, which is going to cost me $800/year just to exist.
 
-I may eventually get around to rebranding from *Ben Whaley/bwhaley.com* to *Whale Tech LLC*, but it's not a very high priority right now. I'll be interested to see if clients push back on working with an LLC as opposed to a 1099 contractor, which is how most of my contracts had been arranged previously.
+I may eventually get around to rebranding from *Ben Whaley/bwhaley.com* to *Whale Tech LLC*, but it's not a very high priority right now. [EDIT: I did this finally!] I'll be interested to see if clients push back on working with an LLC as opposed to a 1099 contractor, which is how most of my contracts had been arranged previously.
 
 ## Clients
 I have been fortunate to work with around a dozen excellent clients at this point. I've acquired clients via several avenues:

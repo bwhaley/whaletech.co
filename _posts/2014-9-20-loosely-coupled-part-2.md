@@ -2,7 +2,7 @@
 layout: post
 title: "Loosely Coupled, Part Two"
 excerpt: |
-  <p>This post continues my thoughts on loosely coupled infrastructure. If you haven't read <a href="http://blog.bwhaley.com/loosely-coupled">part 1</a>, this would be a good time to do so.</p>
+  <p>This post continues my thoughts on loosely coupled infrastructure. If you haven't read <a href="https://www.whaletech.co/2014/09/20/loosely-coupled-part-2.html">part 1</a>, this would be a good time to do so.</p>
   <h2>S3</h2>
   <p>In his 2012 re:Invent keynote, Werner Vogels outlines several architectural tenants for build...
 modified: 2014-9-20
@@ -11,7 +11,7 @@ tags: [theory]
 ---
 
 
-This post continues my thoughts on loosely coupled infrastructure. If you haven't read [part 1](http://blog.bwhaley.com/loosely-coupled), this would be a good time to do so.
+This post continues my thoughts on loosely coupled infrastructure. If you haven't read [part 1](https://www.whaletech.co/2014/09/20/loosely-coupled-part-2.html), this would be a good time to do so.
 
 ##S3
 In his 2012 re:Invent keynote, Werner Vogels outlines several architectural tenants for building on AWS. One of them succinctly states,
@@ -23,13 +23,13 @@ The [example he uses (video link)](https://www.youtube.com/watch?v=PW1lhU8n5So#t
 To solve the problem, the engineers designed a solution in which IMDB movie info was pushed as static assets to an S3 bucket, and Amazon.com would look for the data there, thus circumventing that dependent relationship.
 
 <figure>
-<a href="http://i.imgur.com/FGJA0s7.png"><img src="http://i.imgur.com/FGJA0s7.png"></a>
+<a href="https://i.imgur.com/FGJA0s7.png"><img src="https://i.imgur.com/FGJA0s7.png"></a>
 </figure>
 
 I've used this pattern myself to separate query jobs from a reporting interface. Several query jobs run on several databases that are spread among multiple VPCs. The databases vary both in instance type and in volume of data, and the query time is highly variable. When the query job completes, it sends results to an S3 bucket. A worker on the reporting side polls the bucket for new data, and when data is found the worker consumes, processes, and stores it in another database for reporting.
 
 <figure>
-<a href="http://i.imgur.com/Ii1DnrU.png"><img src="http://i.imgur.com/Ii1DnrU.png"></a>
+<a href="https://i.imgur.com/Ii1DnrU.png"><img src="https://i.imgur.com/Ii1DnrU.png"></a>
 </figure>
 
 Using this design, every piece of the system becomes modular. So long as the producers conform to the message format, the consumer can read the updates periodically for ingest to the reporting system. More producers can be added, or the consumer worker can be removed from the system for a time with no adverse outcomes.
@@ -40,7 +40,7 @@ An especially nice side effect of this approach is the granular permissions that
 Most services running in the cloud are proxied behind a load balancer, decoupling clients from the web servers to assist with handling load and assuring that the service is available on a given instance via health checks. Proxies turn out to be useful for decoupling at other tiers as well. For example, one common use case is to use HAProxy in front of [multi-master MySQL](https://www.digitalocean.com/community/tutorials/how-to-set-up-mysql-master-master-replication), allowing for load balancing of the database.
 
 <figure>
-<a href="http://i.imgur.com/NDr3zLM.png"><img src="http://i.imgur.com/NDr3zLM.png"></a>
+<a href="https://i.imgur.com/NDr3zLM.png"><img src="https://i.imgur.com/NDr3zLM.png"></a>
 </figure>
 
 In this example, HAProxy lives on each instance, perhaps running in a container, and is configured with each of the downstream master MySQL databases. HAProxy can even run health checks against the database servers, removing one from service if a problem arises.  Unfortunately this particular approach is not offered as a service on AWS, nor is multi-master MySQL replication.

@@ -17,7 +17,7 @@ Much more experienced (and opinionated) people than myself have a lot to say abo
 
 Defining loose coupling, on the other hand, is more straightforward: a design in which two or more related components are implemented with minimal interdependencies. As a design pattern, loose coupling is at the core of any SOA/microservices architecture. Loose coupling reduces complexity. Fewer dependencies among systems leads to improved flexibility, ultimately trending towards a cohesive, sensible set of independent services that embody the UNIX tradition of *do one thing and do it well*.
 
-There are many examples of loose coupling in software development (start with [the Wikipedia article](http://en.wikipedia.org/wiki/Loose_coupling) and work your way out), but I've found far fewer examples of loose coupling as applied to systems architecture.
+There are many examples of loose coupling in software development (start with [the Wikipedia article](https://en.wikipedia.org/wiki/Loose_coupling) and work your way out), but I've found far fewer examples of loose coupling as applied to systems architecture.
 
 In this series of two posts I'll present examples of loose coupling focused on infrastructure, and in particular on Amazon Web Services, where I spend most of my time these days. The intent is to demonstrate how loosely coupled infrastructure design leads to more manageable, robust, and scalable compute environments.
 
@@ -43,7 +43,7 @@ These could be situations where a queue is used to decouple maintenance or analy
 In AWS,  "the Simple Queue Service (SQS) is a fast, reliable, scalable, fully managed message queuing service" that "makes it simple and cost-effective to decouple the components of a cloud application." Interaction with SQS is entirely via https. Permissions can be granted explicitly via the queue settings as well as via AWS IAM. Messages can be up to 256Kb in size and will remain on the queue for up to 14 days.
 
 <figure>
-<a href="http://i.imgur.com/pw1MM07.png"><img src="http://i.imgur.com/pw1MM07.png"></a>
+<a href="https://i.imgur.com/pw1MM07.png"><img src="https://i.imgur.com/pw1MM07.png"></a>
 </figure>
 
 For applications already built on the AWS ecosystem, SQS is a solid contender for use as an application's messaging service. As a managed service, SQS adds basically no operational burden; it is truly set and forget. In my monitoring dashboards I include queue depth as well as sent, received, and deleted messages, which helps me to infer the status of producers and consumers.

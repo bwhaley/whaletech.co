@@ -14,7 +14,7 @@ As a system admin learning the ropes in the late 90s, I worked on a fair number 
 I've been through these questions at a number of startups now, and I've developed what I consider to be a best practice base VPC architecture that can be a good fit in many environments. It leverages some of the newer AWS features and is structured to optimize for security, reliability, and manageability. It looks like this:
 
 <figure>
-<a href="http://i.imgur.com/biwerCe.png"><img src="http://i.imgur.com/biwerCe.png"></a>
+<a href="https://i.imgur.com/biwerCe.png"><img src="https://i.imgur.com/biwerCe.png"></a>
 </figure>
 
 Let's step through the design, workout from outside in.
@@ -26,12 +26,12 @@ Three VPCs are connected via VPC peering. I'll refer to them here as the managem
 Each VPC is segmented in the same way, optimized for separation of logical services. Consider the following:
 
 <figure>
-<a href="http://i.imgur.com/FPn2vyN.png"><img src="http://i.imgur.com/FPn2vyN.png"></a>
+<a href="https://i.imgur.com/FPn2vyN.png"><img src="https://i.imgur.com/FPn2vyN.png"></a>
 </figure>
 
 In this example, the `10.100.0.0/16` network is segmented in to nine subnets.
 
-Three of the subnets are public, with outbound traffic routed through an [Internet Gateway](http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Internet_Gateway.html). All systems in these subnets are either managed services (e.g. ELBs) or have elastic IP addresses for inbound traffic.
+Three of the subnets are public, with outbound traffic routed through an [Internet Gateway](https://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Internet_Gateway.html). All systems in these subnets are either managed services (e.g. ELBs) or have elastic IP addresses for inbound traffic.
 
 The other six subnets are private, without outbound traffic routed through NAT servers in the public subnets and no direct inbound access from the Internet. Three of these six are for private web services, such as application servers, queue processors, reporting systems, or any other application that does not require direct connectivity from users. The final three are for persistence stores: databases, cache clusters, data pipelines. The use of a `/16` ensures that subnets can be added and the network expanded as needed.
 
@@ -48,7 +48,7 @@ To allow access from the ELB, use the ELB's security group ID explicitly to limi
 The same private service may need to connect to a cache and a database in the persistence subnets. The cache and the database then should be in security groups that allow only the port necessary from the security group of the private service. Visually, this structure looks like this:
 
 <figure>
-<a href="http://i.imgur.com/vWp9EWK.png"><img src="http://i.imgur.com/vWp9EWK.png"></a>
+<a href="https://i.imgur.com/vWp9EWK.png"><img src="https://i.imgur.com/vWp9EWK.png"></a>
 </figure>
 
 This VPC architecture allows for room to grow services are added to the environment. Access is heavily restricted by security group and by network. Services can be deployed in a clean and organized fashion among multiple availability zones. Public, private, and persistence tiers are logically separated, Production and non-production are not peered, providing complete network separation for those environments. Continuous deployment systems can access both networks.

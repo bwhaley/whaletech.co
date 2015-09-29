@@ -9,7 +9,7 @@ tags: [containers, ecs, reinvent, aws]
 ---
 <br/>
 <figure>
-<a href="http://i.imgur.com/wKrYxQb.png"><img src="http://i.imgur.com/wKrYxQb.png"></a>
+<a href="https://i.imgur.com/wKrYxQb.png"><img src="https://i.imgur.com/wKrYxQb.png"></a>
 </figure>
 
 Another re:Invent in the bag! I'm beginning to digest the new services and trends I saw after listening to the keynotes, walking the exhibition hall floor, and chatting with what feels like all 13,000 people that attended. Here are my immediate impressions of the two most-hyped services since that's all I have time for now.
@@ -17,7 +17,7 @@ Another re:Invent in the bag! I'm beginning to digest the new services and trend
 ##[EC2 Container Service](https://aws.amazon.com/ecs/)
 
 <figure>
-<a href="http://i.imgur.com/PDj3uc4.png"><img src="http://i.imgur.com/PDj3uc4.png"></a>
+<a href="https://i.imgur.com/PDj3uc4.png"><img src="https://i.imgur.com/PDj3uc4.png"></a>
 </figure>
 You might have heard about this thing called Docker that's been going around. As expected, Amazon's container service is built around Docker and the Docker Hub and promises a nice cluster abstraction to running containers on a fleet of EC2 instances. It even comes complete with an awesome spaceport for moving containers around! Docker CEO Ben Goleb went to bat on stage with Werner pronouncing a deep integration and partnership with Amazon.
 
@@ -27,7 +27,7 @@ Still, AWS has a track record of releasing an MVP and iterating quickly. The dre
 
 I've been running Docker in production settings since (stupidly) version 0.5. The product is fantastic and the benefits are real, but it's clear that a service like this is needed to simplify the orchestration and configuration. I'm excited to see this service improve rapidly.
 
-##[Lambda](http://aws.amazon.com/lambda/)
+##[Lambda](https://aws.amazon.com/lambda/)
 Also available in preview only is Lambda, "a compute service that runs your code in response to events and automatically manages the compute resources." When an event occurs, like a new object uploaded to an S3 bucket or an message arrives on a Kinesis stream, a "trigger" calls a cloud function to process the event. Cloud functions are written in Node.js and can be daisy chained to create more complex interactions. Rumors abound that additional languages may be launched soon. Lambda functions can even be triggered on a scheduled basis, which I'll use to replace some cron jobs.
 
 People that I spoke to at the conference were very impressed with this announcement. I tweeted that it replaces an entire tier of worker instances that do nothing but process streams of event data. No longer are full blown EC2 instances needed for simple message processing. Mitch Garnaat (whom I didn't have the pleasure of meeting, sadly) tweeted:

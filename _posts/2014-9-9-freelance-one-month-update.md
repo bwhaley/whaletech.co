@@ -2,14 +2,14 @@
 layout: post
 title: "Freelance one month update"
 excerpt:
-  <p>About two months ago <a href="http://blog.bwhaley.com/freelance">I wrote about</a> the  beginning of my freelance journey. I officially started consulting on August 1st so I have just a little over a month under my belt. Time for an update.</p>
+  <p>About two months ago <a href="https://www.whaletech.co/2014/07/06/freelance.html">I wrote about</a> the  beginning of my freelance journey. I officially started consulting on August 1st so I have just a little over a month under my belt. Time for an update.</p>
   <h2>Work</h2>
   <p>August filled up quickly with a var..."
 modified: 2014-9-9
 comments: true
 tags: [business, update]
 ---
-About two months ago [I wrote about](http://blog.bwhaley.com/freelance) the  beginning of my freelance journey. I officially started consulting on August 1st so I have just a little over a month under my belt. Time for an update.
+About two months ago [I wrote about](https://www.whaletech.co/2014/07/06/freelance.html) the  beginning of my freelance journey. I officially started consulting on August 1st so I have just a little over a month under my belt. Time for an update.
 
 ## Work
 August filled up quickly with a variety of engagements: a technical project to design a move from Heroku to AWS for an exciting startup in San Francisco, a [talk at Intuit](https://speakerdeck.com/bwhaley/mobile-scale-aws) on the topic of scaling with AWS, and product design, marketing, and architecture for a startup in the south bay. I was fully booked all month and it really didn't take much effort.

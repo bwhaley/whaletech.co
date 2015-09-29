@@ -26,7 +26,7 @@ I'm being very careful to communicate my plans to the most important people in m
 
 For the past several months I've also been doing more scouting than usual. To be fair to my current employer I hadn't told anyone of my plans, but I attended conferences and meetups in the Bay area with an eye for potential clients. I did a talk at a local meetup and for a vendor to help boost my profile. My recent videos, [Linux System Administration](http%3A%2F%2Fclick%2Elinksynergy%2Ecom%2Ffs-bin%2Fclick%3Fid%3DV8AbX0rxSNw%26offerid%3D145238%2E10000366%26type%3D3%26subid%3D0&urlhash=I7Ey&trk=prof-publication-title-link) and the upcoming Linux Web Operations, should also help.
 
-I built a [website about myself](http://www.bwhaley.com), the first one I've ever done. I found it to be a strange and uncomfortable experience, but I'll need to get in the habit of selling myself. Of course, I also started this blog, something which I've attempted and failed at many times over the years. Still, I think that maintaining a current online portfolio and presence is important for a consultant, especially in tech.
+I built a website about myself, the first one I've ever done. I found it to be a strange and uncomfortable experience, but I'll need to get in the habit of selling myself. Of course, I also started this blog, something which I've attempted and failed at many times over the years. Still, I think that maintaining a current online portfolio and presence is important for a consultant, especially in tech.
 
 I made a sales pipeline spreadsheet to track work opportunities. I broke each lead down as follows:
 * 5%		Lead
