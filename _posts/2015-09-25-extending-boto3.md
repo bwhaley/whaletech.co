@@ -124,7 +124,6 @@ class SecurityGroupRule(object):
         self.source_groups = source_groups
         self.cidr_ranges = cidr_ranges
         self.prefix_lists = prefix_lists
-        self.snoop_findings = None
 
     @property
     def protocol(self):
@@ -260,4 +259,4 @@ The idea is that even internal to a VPC, security groups should be as restrictiv
 ## Wrapping Up
 The boto3 event system is a novel approach to allow more pythonic interactions with AWS resources. This example showed how to essentially subclass `ec2.SecurityGroup` to allow better analysis of rules. I also subclass `ec2.Instance` to extract additional instance properties which aren't immediately available, like IAM policies and instance userdata.
 
-Please hassle me in the comments or [on teh Twitter](https://twitter.com/iAmTheWhaley) about how bad my Python code is or to correct/clarify anything. Thanks for reading.
+Please hassle me about something in the comments or [on Twitter](https://twitter.com/iAmTheWhaley) if you want. Thanks for reading.
