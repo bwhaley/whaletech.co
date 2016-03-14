@@ -15,14 +15,6 @@ layout: default
 <li> Vulnerability assessments and penetration testing</li>
 <li> API design and implementation</li>
 </ul>
-<p>Inquire via email or social media.</p>
-{% if site.data.social %}
-   {% for social in site.data.social %}
-     <a href="{{ social.href }}"><i class="{{ social.classes }}"></i></a>
-   {% endfor %}
-{% endif %}
-
- <p class="post-meta">GPG: <a href="http://pgp.mit.edu/pks/lookup?op=get&search=0xF1A66DFBD42353FD">04BD CF6E 0BDD 3410 B6F8  54CA F1A6 6DFB D423 53FD</a></p>
 
 <h2>Bio</h2>
 <div class="bio">
@@ -30,7 +22,17 @@ layout: default
   <p>Ben Whaley is the founder of WhaleTech, a consulting company focused on cloud architecture, security, and automation. He was a core member of the team that built Apigee Edge, a globally-distributed API management platform built on AWS. He helped build and operate the back-end services for Anki, a robotics and artificial intelligence company.</p>
   <p>Ben is <a href="https://aws.amazon.com/heroes/usa/ben-whaley/">recognized by AWS</a> in the Community Heroes program. Ben is a co-author of the UNIX & Linux System Administration Handbook and other educational works on system administration. He maintains the CISSP credential, and was previously an RHCE and a PCI QSA.</p>
 </div>
+<br><br><br>
+<p>
+<h2>Contact</h2>
+{% if site.data.social %}
+   {% for social in site.data.social %}
+     <a href="{{ social.href }}"><i class="{{ social.classes }}"></i></a>
+   {% endfor %}
+{% endif %}
+</p>
 
+ <p class="post-meta">GPG: <a href="http://pgp.mit.edu/pks/lookup?op=get&search=0xF1A66DFBD42353FD">04BD CF6E 0BDD 3410 B6F8  54CA F1A6 6DFB D423 53FD</a></p>
 <div style="clear:both"></div>
 
 <h2>Publications</h2>
@@ -42,4 +44,4 @@ layout: default
 </ul>
 <br/>
 <br/>
-<p>This site built using <a href="https://jekyllrb.com">Jekyll</a>, <a href="http://purecss.io/")>Pure.css</a>, the <a href="https://github.com/martin308/left-stripe">Left Stripe theme</a>, and AWS S3.</p>
+<p>This site built using <a href="https://jekyllrb.com">Jekyll</a>, <a href="http://purecss.io/")>Pure.css</a>, the <a href="https://github.com/martin308/left-stripe">Left Stripe theme</a>. Hosted on AWS.</p>
