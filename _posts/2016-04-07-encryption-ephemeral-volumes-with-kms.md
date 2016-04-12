@@ -39,7 +39,7 @@ mdadm --detail --scan >> /etc/mdadm.conf
 
 ## LUKS
 #Generate a random passphrase
-passphrase=$(< /dev/random tr -dc '_A-Za-z0-9@#%^_\\-\\=+"' | head -c 256 | xargs -0 echo)
+passphrase=$(< /dev/urandom tr -dc '_A-Za-z0-9@#%^_\\-\\=+"' | head -c 256 | xargs -0 echo)
 
 # Encrypt the passphrase using KMS. Assumes a key "cassandra" already exists and the IAM role has permissions to use it
 # Store the ciphertext in /etc/.luks
