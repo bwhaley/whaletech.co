@@ -61,7 +61,7 @@ mkdir -p /var/lib/cassandra
 mount /dev/mapper/cassandra /var/lib/cassandra
 {% endhighlight %}
 
-At boot we need to decrypt the volume before it's needed by Cassandra. We're using Amazon Linux, which still uses sysv-style init. I put the script in `/etc/init.d/luks-decrypt` with a symlink from `/etc/rc.3/S15luks`, but this will vary depending on Linux distro. A script to set this up runs just after the encrypted volume is mounted. It looks like this:
+At boot we need to decrypt the volume before it's needed by Cassandra. We're using Amazon Linux, which still uses sysv-style init. I put the script in `/etc/init.d/luks-mount` with a symlink from `/etc/rc.3/S15luks`, but this will vary depending on Linux distro. A script to set this up runs just after the encrypted volume is mounted. It looks like this:
 
 {% highlight bash %}
 #!/bin/bash
@@ -71,7 +71,7 @@ At boot we need to decrypt the volume before it's needed by Cassandra. We're usi
 UUID=$(cryptsetup luksUUID /dev/md0)
 
 # Set up the init script
-cat <<-EOM > /etc/init.d/luks-decrypt
+cat <<-EOM > /etc/init.d/luks-mount
 #!/bin/bash
 # A quickly hacked together script to remount a luks volume at boot
 
