@@ -25,3 +25,18 @@ s3cmd sync --acl-public --exclude '.DS_Store' --exclude 'assets/'  _site/ s3://w
 
 # Sync: remaining files & delete removed
 s3cmd sync --acl-public --delete-removed  _site/ s3://www.whaletech.co/
+
+# Invalidate the cloudformation distribution to force a refresh
+distribution_id="EIE5WI5MRUPL5" 
+invalidation_batch_file="/tmp/batch.json"
+cat << EOF > ${invalidation_batch_file}
+{
+  "Paths": {
+    "Quantity": 1,
+    "Items": ["/*"]
+  },
+  "CallerReference": "my-invalidation-$(date +%s)"
+}
+EOF
+aws cloudfront create-invalidation  --distribution-id ${distribution_id} --invalidation-batch file://${invalidation_batch_file}
+rm ${invalidation_batch_file}

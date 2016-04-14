@@ -20,7 +20,19 @@ I chose to tackle this with [AWS Key Management Service](https://aws.amazon.com/
 3. Create a RAID device of all the ephemeral volumes, then use the passphrase to encrypt the volume using LUKS.
 4. After a reboot, send the ciphertext to KMS, which decrypts and hands back the passphrase. Use it to open the volume.
 
-The code for steps 1-3 looks something like this. Our production version is actually chef-ified and somewhat abstracted, but I used this bash script as a proof-of-concept.
+The production implementation is chef-ified and somewhat abstract, but I used the following scripts as a proof-of-concept.
+
+## Create a KMS key
+You can do this either from the console or via the aws cli tool. It requires a gnarly key policy, which is created for you automatically if you use the console wizard. See an example in the gist linked below.
+
+{% highlight bash %}
+$ aws --region us-east-1 kms create-key --policy file://kms_policy.json --description "Cassandra ephemeral disk encryption key"
+{% endhighlight %}
+
+Find an example key policy in [this gist](https://gist.github.com/bwhaley/050d342ffc1f7c67acd58357389f9dda#file-kms_policy-json).
+
+## Create and encrypt the ephemeral disks
+The script below performs steps 2 & 3 in the list above. Create a RAID array, generate a passphrase, encrypt the RAID device using dm-crypt, and finally create and mount a filesystem on the encrypted device.
 
 {% highlight bash %}
 #!/bin/bash
@@ -55,12 +67,16 @@ UUID=$(cryptsetup luksUUID /dev/md0)
 # Open the encrypted volume
 echo "$passphrase" | cryptsetup luksOpen UUID=${UUID} cassandra
 
+# the passphrase is no longer needed
+unset passphrase
+
 # Do Filesystem stuff
 yes | mkfs.ext4 /dev/mapper/cassandra
 mkdir -p /var/lib/cassandra
 mount /dev/mapper/cassandra /var/lib/cassandra
 {% endhighlight %}
 
+## Set up post-boot decryption
 At boot we need to decrypt the volume before it's needed by Cassandra. We're using Amazon Linux, which still uses sysv-style init. I put the script in `/etc/init.d/luks-mount` with a symlink from `/etc/rc.3/S15luks`, but this will vary depending on Linux distro. A script to set this up runs just after the encrypted volume is mounted. It looks like this:
 
 {% highlight bash %}
@@ -91,6 +107,7 @@ chmod 755 /etc/init.d/luks-mount
 ln -s /etc/init.d/luks-mount /etc/rc3.d/S15luks
 {% endhighlight %}
 
+## Make sure Amazon Linux can boot
 A final wrinkle cropped up when Amazon Linux would auto-discover the LUKS volume early in the boot process and would try to decrypt it. At a reboot, it would just prompt for a passphrase and hang indefinitely. The system log looked something like this:
 
 ```
@@ -108,4 +125,5 @@ sed -i 's/#omit_dracutmodules+=""/omit_dracutmodules+="crypt"/' /etc/dracut.conf
 dracut --force
 {% endhighlight %}
 
+## Conclusion
 Is it a perfect scheme? Probably not. But it protects the data at rest as it resides on the host running our EC2 instances, and it avoids ever storing the passphrase in plaintext anywhere. Notice that the passphrase is only ever stored in variables in the bash scripts, and so it's only ever in memory.
