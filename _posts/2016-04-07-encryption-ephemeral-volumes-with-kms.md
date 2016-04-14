@@ -23,13 +23,11 @@ I chose to tackle this with [AWS Key Management Service](https://aws.amazon.com/
 The production implementation is chef-ified and somewhat abstract, but I used the following scripts as a proof-of-concept.
 
 ## Create a KMS key
-You can do this either from the console or via the aws cli tool. It requires a gnarly key policy, which is created for you automatically if you use the console wizard. See an example in the gist linked below.
+You can do this either from the console or via the aws cli tool. It requires a gnarly key policy, which is created for you automatically if you use the console wizard. See an example in [this gist](https://gist.github.com/bwhaley/050d342ffc1f7c67acd58357389f9dda#file-kms_policy-json).
 
 {% highlight bash %}
 $ aws --region us-east-1 kms create-key --policy file://kms_policy.json --description "Cassandra ephemeral disk encryption key"
 {% endhighlight %}
-
-Find an example key policy in [this gist](https://gist.github.com/bwhaley/050d342ffc1f7c67acd58357389f9dda#file-kms_policy-json).
 
 ## Create and encrypt the ephemeral disks
 The script below performs steps 2 & 3 in the list above. Create a RAID array, generate a passphrase, encrypt the RAID device using dm-crypt, and finally create and mount a filesystem on the encrypted device.
