@@ -3,7 +3,7 @@ layout: post
 title: "Ansible playbook for additional CA Certs"
 excerpt: |
   I recently needed to add an additional Comodo cert to Ubuntu 14.04 instances. I put the following plays in my <code>common</code> Ansible role that is applied to all my systems:
-modified: 2014-7-23
+modified: 2014-07-23
 comments: true
 tags: [ansible]
 ---

@@ -3,7 +3,7 @@ layout: post
 title: "Loosely Coupled"
 excerpt: |
   <p>Much ado has been made recently regarding service oriented architectures and microservices. Martin Fowler <a href="http://martinfowler.com/articles/microservices.html">wrote</a> a long article about what Microservices means from a 40,000 foot view...
-modified: 2014-9-16
+modified: 2014-09-16
 comments: true
 tags: [theory]
 ---

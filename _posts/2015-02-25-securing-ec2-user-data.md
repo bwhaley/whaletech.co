@@ -9,7 +9,7 @@ excerpt: |
   <p>But user data is not encrypted. It is exposed via the web console, in a file on disk, and to any process running on the instance via the instance metadata. The docs even warn against using it for anything sensitive. Some web app attacks have been known to seek access to user data, hoping to reveal secrets and access info.</p>
 
   <p>Here's one method to secure those secrets and still preserve the usefulness of user data.</p>
-modified: 2015-2-25
+modified: 2015-02-25
 tags: [security, userdata, certificates, encryption]
 comments: true
 ---
@@ -33,7 +33,7 @@ Bake the private key in to the AMI. I do this with Packer. The provisioner secti
 "provisioners": [
     {
       "type": "file",
-      "source": "{{user `private_key_file`}}",
+      "source": "\\{\\{user private_key_file\\}}",
       "destination": "/tmp/private.key"
     },
     {

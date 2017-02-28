@@ -3,7 +3,7 @@ layout: post
 title: "Freelance Eight Month Update"
 excerpt: |
   <p>Eight months have passed I'm overdue for an update on my freelancing business. A lot has transpired since my last update in October so I'll get right to it.</p>
-modified: 2015-3-30
+modified: 2015-03-30
 comments: true
 tags: [business, update]
 ---

@@ -2,7 +2,7 @@
 layout: post
 title: "Freelance"
 excerpt: "<p>Having decided to work for myself as a freelance consultant after working in relatively stable and secure jobs for more than a decade, I can't help but feel some anxiety and nerves about the change. I worry that I won't meet my financial goals, that I won't be able to land or retain clients, and ..."
-modified: 2014-7-6
+modified: 2014-07-06
 comments: true
 tags: [business, update]
 ---

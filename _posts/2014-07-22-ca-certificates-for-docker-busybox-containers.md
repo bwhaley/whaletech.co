@@ -3,7 +3,7 @@ layout: post
 title: "Root CA certificates for Docker Busybox containers"
 excerpt: |
   <p>I use the very useful <a href="https://github.com/progrium/busybox">progrium/busybox image</a> as well as the <a href="https://docs.docker.com/articles/baseimages/#creating-a-simple-base-image-using-scratch">official scratch image</a> for running go services in Docker containers. However, the ima...</p>
-modified: 2014-7-22
+modified: 2014-07-22
 comments: true
 tags: [docker, containers, certificates]
 ---

@@ -5,7 +5,7 @@ excerpt:
   <p>About two months ago <a href="https://www.whaletech.co/2014/07/06/freelance.html">I wrote about</a> the  beginning of my freelance journey. I officially started consulting on August 1st so I have just a little over a month under my belt. Time for an update.</p>
   <h2>Work</h2>
   <p>August filled up quickly with a var..."
-modified: 2014-9-9
+modified: 2014-09-09
 comments: true
 tags: [business, update]
 ---

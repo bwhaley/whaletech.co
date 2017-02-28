@@ -3,7 +3,7 @@ layout: post
 title: "The Fallacy of Cloud Lock In"
 excerpt: |
   <p>"Let's design this to be agnostic in case we want to switch cloud vendors later."  -- Person focused on the wrong things</p>
-modified: 2014-12-3
+modified: 2014-12-03
 comments: true
 tags: [cloud, opinion]
 ---

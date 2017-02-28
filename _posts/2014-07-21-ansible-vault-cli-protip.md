@@ -2,7 +2,7 @@
 layout: post
 title: "Ansible vault CLI"
 excerpt: "<p>Here's a quick tip to make working with encrypted <code>ansible-vault</code> data a little easier. Save the vault password to a file, make an alias of <code>ansible-vault</code> with the path to the saved file. Make two more aliases for decrypt and encrypt, then enjoy fewer keypresses for encrypt..."
-modified: 2014-7-21
+modified: 2014-07-21
 comments: true
 tags: [ansible, security]
 ---

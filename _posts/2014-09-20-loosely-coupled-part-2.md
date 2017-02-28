@@ -5,7 +5,7 @@ excerpt: |
   <p>This post continues my thoughts on loosely coupled infrastructure. If you haven't read <a href="https://www.whaletech.co/2014/09/20/loosely-coupled-part-2.html">part 1</a>, this would be a good time to do so.</p>
   <h2>S3</h2>
   <p>In his 2012 re:Invent keynote, Werner Vogels outlines several architectural tenants for build...
-modified: 2014-9-20
+modified: 2014-09-20
 comments: true
 tags: [theory]
 ---

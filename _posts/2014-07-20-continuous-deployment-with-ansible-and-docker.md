@@ -4,7 +4,7 @@ title: "Continuous Deployment with Ansible and Docker"
 excerpt: |
   <p>Update 3/30/2015: I've since made improvements to this method and documented them in a <a href="https://www.whaletech.co/2015/03/29/deploying-to-aws-using-ansible-docker-and-teamcity.html">new blog post</a>. But there's still some valuable stuff here!</p>
   <p>I recently closed the loop on a continuous deployment p...
-modified: 2015-3-30
+modified: 2015-03-30
 comments: true
 tags: [ansible, docker, continuous-deployment, aws, teamcity]
 ---

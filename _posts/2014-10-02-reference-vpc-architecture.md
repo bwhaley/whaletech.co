@@ -3,7 +3,7 @@ layout: post
 title: "A Reference VPC Architecture"
 excerpt: |
   <p>As a system admin learning the ropes in the late 90s, I worked on a fair number of networks. I un-twisted twisted pair cabling and crimped RJ45 connectors when making ethernet cables, slung cabling through ceilings when wiring up offices, and bent under raised flooring to run cables through condu...
-modified: 2014-10-2
+modified: 2014-10-02
 comments: true
 tags: [aws, vpc, ha, architecture]
 ---

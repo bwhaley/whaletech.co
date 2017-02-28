@@ -3,7 +3,7 @@ layout: post
 title: "Evaluating Elastic Beanstalk, an Ops perspective"
 excerpt: |
   <p>Much has been written on the topic of using a PaaS such as Heroku or Elastic Beanstalk for hosting web applications. The benefits are obvious: simpler deployment, hands-free hosting, implicit adherence to scalable web application programming patterns such as <a href="http://12factor.net/">The Twelve-Factor App</a>. But how does Elastic Beanstalk hold up when an application reaches a certain level of complexity? Do the aforementioned benefits outweigh the necessity of conforming to an operationally constrained environment? This post will relate a few challenges I encountered when evaluating AWS Elastic Beanstalk from an operations perspective.
-modified: 2014-8-31
+modified: 2014-08-31
 comments: true
 tags: [aws, elastic-beanstalk]
 ---
