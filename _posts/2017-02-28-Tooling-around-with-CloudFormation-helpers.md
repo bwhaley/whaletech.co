@@ -59,7 +59,7 @@ Now it's time to dive in to the deep end. I need to implement my [reference vpc 
 1. Copy Remind's [vpc.py](https://github.com/remind101/stacker_blueprints/blob/master/stacker_blueprints/vpc.py) to `blueprints/vpc.py`
 2. Copy Remind's [config.py](https://github.com/remind101/stacker_blueprints/blob/master/conf/example.yaml) to `config/config.yaml`
 
-To achieve my reference VPC I'll need 3 environments: Management, NonProd, and Prod. Stacker has support for environments, so this starts with simply `touch config/environments/{management.yaml,nonprod.yaml,prod.yaml}`. Perfect!
+To achieve my reference VPC I'll need 3 environments: Management, NonProd, and Prod. Stacker has support for environments, so this starts with simply `touch config/environments/{management.env,nonprod.env,prod.env}`. Perfect!
 
 Time for some customizations, starting with config.
 
@@ -109,7 +109,7 @@ This differs from the example config in a few important ways:
 * Stacker will look for the VPC class in `blueprints/vpc.py` (the `class_path` setting)
 * I've set several of the parameters (`${SshKeyName}`, `${PublicSubnets}`, `${PrivateSubnets}`, etc) to be variables that are read from environment files. This let's me customize on a per-environment basis.
 
-Setting up the environments takes no time at all. Each environment yaml file looks like this:
+Setting up the environments takes no time at all. Each environment (not yaml, but it looks like it) file looks like this:
 
 {% highlight yaml %}
 namespace: management
@@ -126,15 +126,16 @@ The `namespace` sets up a naming convention to disambiguate stacks. Set up one n
 ### Customizing the VPC blueprint
 Stacker blueprints are python code using the excellent [troposphere](https://github.com/cloudtools/troposphere) library which I've used quite a lot in the past. I had to make a few minor edits to the default VPC class for my needs. I won't go in to all the detail about those edits because customizing the blueprints is straightforward if you understand troposphere. If you don't, go learn it, you'll never go back to manually editing templates.
 
-I did need to drop in to the support Slack room to ask a quick question. The default VPC blueprint does not name the resources, and I wanted to names so that things are identifiable in the AWS console. For example, the management VPC needed the `Name: management` tag. @phobologic (Mike Barrett) was super helpful and gave me the answer right away. To refer to a namespace from within the blueprint, use `self.context.namespace`. I modified the resource tags to include namespaces in the names like this:
+I did need to drop in to the support Slack room to ask a quick question. The default VPC blueprint does not name the resources, and I wanted to names so that things are identifiable in the AWS console. For example, the management VPC needed the `Name: management` tag. [@phobologic](https://twitter.com/phobologic) (Mike Barrett) was super helpful and gave me the answer right away. To refer to a namespace from within the blueprint, use `self.context.get_fqn(self.name)`. I modified the resource tags to include namespaces in the names like this:
 
 {% highlight python %}
+vpc_name_tag = self.context.get_fqn(self.name)
 t.add_resource(ec2.VPC(
     VPC_NAME,
     CidrBlock=Ref("CidrBlock"),
     EnableDnsSupport=True,
     EnableDnsHostnames=True,
-    Tags=Tags(Name="%s-%s" % (self.context.namespace, VPC_NAME))))
+    Tags=Tags(Name=vpc_name_tag)))
 {% endhighlight %}
 
 ### Building the stack
