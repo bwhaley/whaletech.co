@@ -7,6 +7,8 @@ comments: true
 tags: [aws, security, encryption]
 ---
 
+Update 2017-03-06: If I did this again today I'd probably use the [Systems Manager Parameter Store](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/systems-manager-paramstore.html) to save the passphrase rather than using envelope encryption to keep the encrypted passphrase on disk. All the other concepts remain viable.
+
 A project I worked on recently has a business requirement to encrypt data at rest. We had a mid-sized Cassandra cluster on EC2 that, for various reasons, stored data on ephemeral volumes. The system had previously relied on Gazzang (now owned by Cloudera) for on-disk encryption, but according to the operations team it was unwieldy to manage and an "operational bottleneck." I can't attest to that as I wasn't involved in the implementation. I was asked to replace it.
 
 Enter [dm-crypt](https://en.wikipedia.org/wiki/Dm-crypt), and its sidekicks [cryptsetup](https://en.wikipedia.org/wiki/Cryptsetup) and [LUKS](https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup). Perfect for what we needed: an open source disk encryption system built in to the Linux kernel.
