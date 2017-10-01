@@ -1,7 +1,7 @@
 # Site settings
 title: WhaleTech
 email: web@whaletech.co
-description: A web technology consultancy.
+description: The blog of Ben Whaley.
 logo: whaletech.png
 baseurl: "" # the subpath of your site, e.g. /blog/
 url:
