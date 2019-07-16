@@ -8,7 +8,8 @@ url:
 
 # Build settings
 markdown: kramdown
-highlighter: pygments
+highlighter: rouge
+future: true
 
 tag_page_layout: tag_page
 tag_page_dir: tag
