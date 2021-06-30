@@ -1,7 +1,6 @@
 # Site settings
 title: WhaleTech
-email: web@whaletech.co
-description: The blog of Ben Whaley.
+description: What was once here is now gone.
 logo: whaletech.png
 baseurl: "" # the subpath of your site, e.g. /blog/
 url:
@@ -11,11 +10,9 @@ markdown: kramdown
 highlighter: rouge
 future: true
 
-tag_page_layout: tag_page
-tag_page_dir: tag
-
-
-google_analytics: yes
+exclude:
+ - Gemfile
+ - Gemfile.lock
 
 gems:
   - jekyll-gist
