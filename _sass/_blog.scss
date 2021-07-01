@@ -71,6 +71,9 @@ h3 a:hover, a:active {
 
 .sidebar {
     background: $whalegray;
+        text-align: center;
+        height: 100%;
+        padding: 100px 0 0;
 }
 
 .brand-title,
@@ -123,7 +126,7 @@ h3 a:hover, a:active {
 .content {
     padding: 2em 1em 0;
     background: #ddd;
-    margin: 0;
+    margin: 10;
     height: 100%;
 }
 
@@ -311,7 +314,6 @@ blockquote p {
   }
 }
 
-
 .footer {
     text-align: center;
     padding: 1em 0;
@@ -327,10 +329,5 @@ blockquote p {
     .header {
         margin: 80% 2em 0;
         text-align: center;
-    }
-
-    .sidebar {
-        text-align: center;
-        height: 100%;
     }
 }
