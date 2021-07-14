@@ -64,11 +64,11 @@ a {
 /* section 2 */
 
 .section-2 {
-    padding-top: 10vh;
     width: 75%;
 }
 
 .section-2 h2 {
+    padding-top: 10px;
     font-size: 1.7rem;
     margin-bottom: 10px;
 }
@@ -97,10 +97,28 @@ a {
     padding: 5px 0px 5px 15px;
 }
 
+.section-2 button {
+    background-color: rgb(0, 96, 141);
+    border: none;
+    color: white;
+    padding: 15px 32px;
+    border-radius: 10px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+}
 
-/* projects section */
+.section-2 p.footer {
+    display: block;
+    margin: 50px 0 80px 0;
+    padding: 5px 0 0 0;
+    border-top: 2px solid rgb(0, 96, 141);
+    position: relative;
+    font-size: 14px;
+}
 
-.grid-projects {
+.section-2.grid-projects {
     display: grid;
     grid-template-columns: 150px 1fr;
     grid-gap: 10px;
@@ -109,8 +127,16 @@ a {
     align-items: center;
 }
 
-.projects-icon {
+.section-2.projects-icon {
     text-align: center;
+}
+
+.section-2.grid-small {
+    display: grid;
+    grid-template-columns: 25% 1fr;
+    padding-top: 1em;
+    padding-bottom: 1em;
+    align-items: center;
 }
 
 
@@ -132,7 +158,12 @@ a {
         padding-left: 1.5rem;
         padding-top: 2rem;
     }
-    .grid-projects {
+    .section-2.grid-projects {
+        padding: 0;
+        padding-left: 1.5rem;
+        padding-top: 2rem;
+    }
+    .section-2.grid-small {
         padding: 0;
         padding-left: 1.5rem;
         padding-top: 2rem;
