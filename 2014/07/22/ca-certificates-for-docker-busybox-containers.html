@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Root CA certificates for Docker Busybox containers</title>
+
+    <link rel="stylesheet" href="../../../assets/css/legacy.css">
+    <link rel="canonical" href="/2014/07/22/ca-certificates-for-docker-busybox-containers.html">
+</head>
+
+<body>
+    <div class="post">
+        <header class="post-header">
+            <h1 class="post-title">Root CA certificates for Docker Busybox containers</h1>
+            <p class="post-meta">
+                posted on Jul 22, 2014
+            </p>
+            <p class="post-meta">
+
+                <span class="post-category post-category-docker"><a href="/tags/#docker">docker</a></span>
+
+                <span class="post-category post-category-containers"><a href="/tags/#containers">containers</a></span>
+
+                <span class="post-category post-category-certificates"><a href="/tags/#certificates">certificates</a></span>
+
+            </p>
+        </header>
+
+        <article class="post-content">
+            <p>I use the very useful <a href="https://github.com/progrium/busybox">progrium/busybox image</a> as well as the <a href="https://docs.docker.com/articles/baseimages/#creating-a-simple-base-image-using-scratch">official scratch image</a> for
+                running go services in Docker containers. However, the image does not include certificate trust stores and thus cannot talk to SSL-enabled web services. The application I’m deploying needs to talk to the AWS API which is, of course, SSL-only.</p>
+
+            <p>The app throws this error when trying to talk to the DynamoDB API</p>
+
+            <figure class="highlight"><pre><code class="language-go" data-lang="go"><span class="n">x509</span><span class="o">:</span><span class="x"> </span><span class="n">failed</span><span class="x"> </span><span class="n">to</span><span class="x"> </span><span class="n">load</span><span class="x"> </span><span class="n">system</span><span class="x"> </span><span class="n">roots</span><span class="x"> </span><span class="n">and</span><span class="x"> </span><span class="n">no</span><span class="x"> </span><span class="n">roots</span><span class="x"> </span><span class="n">provided</span></code></pre></figure>
+
+            <p>To fix the issue I mount the host’s certificate store in the container. This way there’s no need to even keep the root certificates in the image. Golang looks in <a href="http://golang.org/src/pkg/crypto/x509/root_unix.go">a few standard places</a>                for the CA cert bundle. I used <code class="highlighter-rouge">docker run -v '/etc/ssl/certs:/etc/ssl/certs' ...</code> to mount the host’s certs to the container, which prevents the above error.</p>
+
+            <p>Another approach would be to use <code class="highlighter-rouge">COPY</code> instruction to load the certificate store bundle in to the image, thus preventing the need for a volume.</p>
+
+        </article>
+
+</body>
+
+</html>

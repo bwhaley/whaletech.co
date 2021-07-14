@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Encrypting EC2 ephemeral volumes with LUKS and AWS KMS</title>
+
+    <link rel="stylesheet" href="../../../assets/css/legacy.css">
+    <link rel="canonical" href="/2016/04/07/encryption-ephemeral-volumes-with-kms.html">
+</head>
+
+<body>
+    <div class="post">
+        <header class="post-header">
+            <h1 class="post-title">Encrypting EC2 ephemeral volumes with LUKS and AWS KMS</h1>
+            <p class="post-meta">
+                posted on Apr 7, 2016
+            </p>
+            <p class="post-meta">
+
+                <span class="post-category post-category-aws"><a href="/tags/#aws">aws</a></span>
+
+                <span class="post-category post-category-security"><a href="/tags/#security">security</a></span>
+
+                <span class="post-category post-category-encryption"><a href="/tags/#encryption">encryption</a></span>
+
+            </p>
+        </header>
+
+        <article class="post-content">
+            <p>Update 2017-03-06: If I did this again today I’d probably use the <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/systems-manager-paramstore.html">Systems Manager Parameter Store</a> to save the passphrase rather than using envelope
+                encryption to keep the encrypted passphrase on disk. All the other concepts remain viable.</p>
+
+            <p>A project I worked on recently has a business requirement to encrypt data at rest. We had a mid-sized Cassandra cluster on EC2 that, for various reasons, stored data on ephemeral volumes. The system had previously relied on Gazzang (now owned
+                by Cloudera) for on-disk encryption, but according to the operations team it was unwieldy to manage and an “operational bottleneck.” I can’t attest to that as I wasn’t involved in the implementation. I was asked to replace it.</p>
+
+            <p>Enter <a href="https://en.wikipedia.org/wiki/Dm-crypt">dm-crypt</a>, and its sidekicks <a href="https://en.wikipedia.org/wiki/Cryptsetup">cryptsetup</a> and <a href="https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup">LUKS</a>. Perfect
+                for what we needed: an open source disk encryption system built in to the Linux kernel.</p>
+
+            <p>Operationally, one challenge with full disk encryption for servers is key management. LUKS/cryptsetup takes a passphrase to be used to generate symmetric keys for encrypting the disk. How can you safely provide the passphrase for mounting
+                the encrypted volume at boot time without operational intervention?</p>
+
+            <p>I chose to tackle this with <a href="https://aws.amazon.com/kms/">AWS Key Management Service</a>. The scheme works like this:</p>
+
+            <ol>
+                <li>All Cassandra nodes are members of an IAM role with access to a Cassandra master key. It is the easiest step since the KMS Create Key wizard walks you right through it. I ended up with a key policy that lets my IAM user account administer
+                    the key, and the C* IAM role has access to encrypt and decrypt data using the KMS master key.</li>
+                <li>At boot, the C* nodes generate a random passphrase and encrypt it using <a href="http://docs.aws.amazon.com/kms/latest/developerguide/workflow.html">KMS envelope encryption</a>. Store the encrypted passphrase ciphertext on disk.</li>
+                <li>Create a RAID device of all the ephemeral volumes, then use the passphrase to encrypt the volume using LUKS.</li>
+                <li>After a reboot, send the ciphertext to KMS, which decrypts and hands back the passphrase. Use it to open the volume.</li>
+            </ol>
+
+            <p>The production implementation is chef-ified and somewhat abstract, but I used the following scripts as a proof-of-concept.</p>
+
+            <h2 id="create-a-kms-key">Create a KMS key</h2>
+            <p>You can do this either from the console or via the aws cli tool. It requires a gnarly key policy, which is created for you automatically if you use the console wizard. See an example in <a href="https://gist.github.com/bwhaley/050d342ffc1f7c67acd58357389f9dda#file-kms_policy-json">this gist</a>.</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="gp">$ </span>aws --region us-east-1 kms create-key --policy file://kms_policy.json --description <span class="s2">"Cassandra ephemeral disk encryption key"</span></code></pre></figure>
+
+            <h2 id="create-and-encrypt-the-ephemeral-disks">Create and encrypt the ephemeral disks</h2>
+            <p>The script below performs steps 2 &amp; 3 in the list above. Create a RAID array, generate a passphrase, encrypt the RAID device using dm-crypt, and finally create and mount a filesystem on the encrypted device.</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="c">#!/bin/bash</span>
+<span class="c">#firstboot.sh</span>
+<span class="nv">PATH</span><span class="o">=</span>/bin:/usr/bin:/sbin:/usr/sbin
+
+<span class="c">### Set up raid with two ephemeral devices</span>
+yes | mdadm --create --verbose /dev/md0 --level<span class="o">=</span>0 -c256 --raid-devices<span class="o">=</span>2 /dev/xvd<span class="o">{</span>b,c<span class="o">}</span>
+
+<span class="c"># Set readahead</span>
+yes | blockdev --setra 65536 /dev/md0
+
+<span class="c"># mdadm config</span>
+<span class="nb">echo </span>DEVICE /dev/xvd<span class="o">{</span>b,c<span class="o">}</span> &gt; /etc/mdadm.conf
+mdadm --detail --scan &gt;&gt; /etc/mdadm.conf
+
+<span class="c">## LUKS</span>
+<span class="c">#Generate a random passphrase</span>
+<span class="nv">passphrase</span><span class="o">=</span><span class="k">$(</span>&lt; /dev/urandom tr -dc <span class="s1">'_A-Za-z0-9@#%^_\\-\\=+'</span> | head -c 256 | xargs -0 <span class="nb">echo</span><span class="k">)</span>
+
+<span class="c"># Encrypt the passphrase using KMS. Assumes a key "cassandra" already exists and the IAM role has permissions to use it</span>
+<span class="c"># Store the ciphertext in /etc/.luks</span>
+<span class="nv">key_id</span><span class="o">=</span><span class="s1">'alias/cassandra'</span>
+aws --region us-east-1 kms encrypt --key-id <span class="k">${</span><span class="nv">key_id</span><span class="k">}</span> --plaintext <span class="s2">"</span><span class="k">${</span><span class="nv">passphrase</span><span class="k">}</span><span class="s2">"</span> --query CiphertextBlob --output text | base64 -d &gt; /etc/.luks
+
+<span class="c"># Format the RAID device</span>
+<span class="nb">echo</span> <span class="nv">$passphrase</span> | cryptsetup luksFormat /dev/md0
+
+<span class="c"># Get the UUID</span>
+<span class="nv">UUID</span><span class="o">=</span><span class="k">$(</span>cryptsetup luksUUID /dev/md0<span class="k">)</span>
+
+<span class="c"># Open the encrypted volume</span>
+<span class="nb">echo</span> <span class="s2">"</span><span class="nv">$passphrase</span><span class="s2">"</span> | cryptsetup luksOpen <span class="nv">UUID</span><span class="o">=</span><span class="k">${</span><span class="nv">UUID</span><span class="k">}</span> cassandra
+
+<span class="c"># the passphrase is no longer needed</span>
+<span class="nb">unset </span>passphrase
+
+<span class="c"># Do Filesystem stuff</span>
+yes | mkfs.ext4 /dev/mapper/cassandra
+mkdir -p /var/lib/cassandra
+mount /dev/mapper/cassandra /var/lib/cassandra</code></pre></figure>
+
+            <h2 id="set-up-post-boot-decryption">Set up post-boot decryption</h2>
+            <p>At boot we need to decrypt the volume before it’s needed by Cassandra. We’re using Amazon Linux, which still uses sysv-style init. I put the script in <code class="highlighter-rouge">/etc/init.d/luks-mount</code> with a symlink from
+                <code class="highlighter-rouge">/etc/rc.3/S15luks</code>, but this will vary depending on Linux distro. A script to set this up runs just after the encrypted volume is mounted. It looks like this:</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="c">#!/bin/bash</span>
+<span class="c">#handle_reboot.sh</span>
+
+<span class="c"># Find the UUID of the luks device</span>
+<span class="nv">UUID</span><span class="o">=</span><span class="k">$(</span>cryptsetup luksUUID /dev/md0<span class="k">)</span>
+
+<span class="c"># Set up the init script</span>
+cat <span class="sh">&lt;&lt;-EOM &gt; /etc/init.d/luks-mount
+#!/bin/bash
+# A quickly hacked together script to remount a luks volume at boot
+
+# Get the passphrase from KMS using the ciphertext
+passphrase=\$(aws --region us-east-1 kms decrypt --ciphertext-blob fileb:///etc/.luks --output text --query Plaintext | base64 -d)
+
+# Open the LUKS volume
+echo "\$passphrase" | cryptsetup luksOpen UUID=${UUID} cassandra
+
+# Mount the volume
+mount /dev/mapper/cassandra /var/lib/cassandra
+EOM
+
+</span>chmod 755 /etc/init.d/luks-mount
+
+<span class="c"># Symlink from runlevel 3</span>
+ln -s /etc/init.d/luks-mount /etc/rc3.d/S15luks</code></pre></figure>
+
+            <h2 id="make-sure-amazon-linux-can-boot">Make sure Amazon Linux can boot</h2>
+            <p>A final wrinkle cropped up when Amazon Linux would auto-discover the LUKS volume early in the boot process and would try to decrypt it. At a reboot, it would just prompt for a passphrase and hang indefinitely. The system log looked something
+                like this:</p>
+
+            <div class="highlighter-rouge"><pre class="highlight"><code>0.478204 dracut: luksOpen /dev/md0 luks-9445aa60-9664-4d3b-a65d-bae6576b77bb
+/dev/md0 (luks-9445aa60-9664-4d3b-a65d-bae6576b77bb) is password protectedEnter passphrase for /dev/md0:
+</code></pre>
+            </div>
+
+            <p>The fix was to prevent the initramfs from discovering and mounting encrypted devices. I did it by removing the crypt module altogether:</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="c"># Omit crypt module from initram so it will not try to mount automatically at boot</span>
+sed -i <span class="s1">'s/#omit_dracutmodules+=""/omit_dracutmodules+="crypt"/'</span> /etc/dracut.conf
+
+<span class="c"># Regenerate initramfs</span>
+dracut --force</code></pre></figure>
+
+            <h2 id="conclusion">Conclusion</h2>
+            <p>Is it a perfect scheme? Probably not. But it protects the data at rest as it resides on the host running our EC2 instances, and it avoids ever storing the passphrase in plaintext anywhere. Notice that the passphrase is only ever stored in
+                variables in the bash scripts, and so it’s only ever in memory.</p>
+
+        </article>
+
+</body>
+
+</html>

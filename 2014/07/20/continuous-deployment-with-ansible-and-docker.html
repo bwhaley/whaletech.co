@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Continuous Deployment with Ansible and Docker</title>
+
+    <link rel="stylesheet" href="../../../assets/css/legacy.css">
+    <link rel="canonical" href="/2014/07/20/continuous-deployment-with-ansible-and-docker.html">
+</head>
+
+<body>
+    <div class="post">
+        <header class="post-header">
+            <h1 class="post-title">Continuous Deployment with Ansible and Docker</h1>
+            <p class="post-meta">
+                posted on Jul 20, 2014
+            </p>
+            <p class="post-meta">
+
+                <span class="post-category post-category-ansible"><a href="/tags/#ansible">ansible</a></span>
+
+                <span class="post-category post-category-docker"><a href="/tags/#docker">docker</a></span>
+
+                <span class="post-category post-category-continuous-deployment"><a href="/tags/#continuous-deployment">continuous-deployment</a></span>
+
+                <span class="post-category post-category-aws"><a href="/tags/#aws">aws</a></span>
+
+                <span class="post-category post-category-teamcity"><a href="/tags/#teamcity">teamcity</a></span>
+
+            </p>
+        </header>
+
+        <article class="post-content">
+            <p>Update 3/30/2015: I’ve since made improvements to this method and documented them in a <a href="https://www.whaletech.co/2015/03/29/deploying-to-aws-using-ansible-docker-and-teamcity.html">new blog post</a>. But there’s still some valuable
+                stuff here!</p>
+
+            <p>I recently closed the loop on a continuous deployment pipeline and it feels like magic. Code runs in an integration environment within 5-10 minutes of a commit, thoroughly tested with unit tests and without downtime thanks to a rolling release
+                process. Here’s how I did it.</p>
+
+            <p>The system is built using the following technologies:</p>
+            <ul>
+                <li>Ansible, for configuration management and orchestration</li>
+                <li>Docker, for shipping application code</li>
+                <li>TeamCity, the build server</li>
+                <li>GitHub for version control</li>
+                <li>A custom-built AWS CloudFormation tool using Python and Boto</li>
+            </ul>
+
+            <p>The service we’re deploying is written in Go, but thanks to Docker this works equally well for any other language. I will adopt the same process for our Python-based services next.</p>
+
+            <p>The flow looks like this:</p>
+
+            <figure>
+                <a href="https://i.imgur.com/j78u9Mv.png"><img src="https://i.imgur.com/j78u9Mv.png" /></a>
+            </figure>
+
+            <ol>
+                <li>TeamCity polls GitHub for new commits on the integration branch</li>
+                <li>A build begins when a new commit is found
+                    <ul>
+                        <li>Get dependencies</li>
+                        <li>Run unit tests</li>
+                        <li>Build application binary</li>
+                        <li>Build Docker container and push to the Docker Hub</li>
+                        <li>Kick off deployment</li>
+                    </ul>
+                </li>
+                <li>The deployment process uses the CloudFormation tool for resource discovery and Ansible for coordinating the release
+                    <ul>
+                        <li>Send a release notification to a Hipchat room</li>
+                        <li>Query the CloudFormation tool to find the systems and load balancers required for the release</li>
+                        <li>Suspend autoscaling actions and disable alerting of the involved systems</li>
+                        <li>SSH to the bastion host (more on this below) and kick off Ansible</li>
+                        <li>Using Ansible’s <a href="https://docs.ansible.com/intro_dynamic_inventory.html">EC2 dynamic inventory</a>, find the relevant application servers by tag</li>
+                        <li>On one application server at a time:</li>
+                    </ul>
+                    <ul>
+                        <li>Remove a server from the ELB</li>
+                        <li>Stop the currently running Docker container</li>
+                        <li>Pull the new container from the Docker Hub and start it</li>
+                        <li>Add the server to the ELB * Resume autoscaling actions, resume alerting * Send a release success notification to Hipchat</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <p>If at any time the release fails, a notification is sent to Hipchat.</p>
+
+            <p>But the devil is in the details, of course.</p>
+
+            <h2 id="the-network">The Network</h2>
+            <p>The first obstacle I had to overcome was how the build server could access systems in the network for deployment. As discussed in some detail in <a href="https://speakerdeck.com/bwhaley/aws-design-patterns-at-anki">this slide deck</a>, I run
+                all my services in <em>micronet</em>; a single purpose VPC that confines a service to its own network. This is excellent for security isolation - a compromise of one application would be limited in scope to only the application’s resources
+                - but the tradeoff is accessibility. The only exposure to the application servers is through a bastion host, which is open only to a single whitelisted IP address (the office). Running commands on those application servers would thus need
+                to either jump through the bastion, or be run on the bastion itself.</p>
+
+            <figure>
+                <a href="https://i.imgur.com/LWALf81.png"><img src="https://i.imgur.com/LWALf81.png" /></a>
+            </figure>
+
+            <p>The build server must know what bastion to use. This is accomplished by using <a href="https://confluence.jetbrains.com/display/TCD8/Configuring+Build+Parameters">TeamCity build parameters</a>. I configured the relevant parameters for the
+                build server to dynamically find the bastion server and the ELB name via the custom Cloudformation tool. I configured a <em>deploy</em> user on the bastion servers and added an SSH key pair. The build server can SSH to the bastion as the
+                deploy user to run Ansible commands.</p>
+
+            <h2 id="the-cloudformation-tool">The CloudFormation Tool</h2>
+            <p>I’ve long struggled with addressing infrastructure in a meaningful way. Drawing heavily from <a href="https://12factor.net/">The Twelve-Factor App</a>, I wrote a Python Flask application that organizes infrastructure in to <em>stacks</em>                of backing resources, such as the VPC, the NAT server, databases, caches, queues, and so on.</p>
+
+            <p>On top of stacks I layer <em>releases</em>, which are the runtime resources of the application: instances and load balancers. Multiple releases can exist for a stack. For example, a service may have a data ingest application, a data query
+                application, and a reporting application, all using the same backing resources.</p>
+
+            <p>Furthermore, it is common to need multiple environments for the same services: a development environment, testing or staging, and production. In my tool I use the term <em>deployment</em> to describe environments.</p>
+
+            <p>When the build server needs to deploy a new container, it consults this CloudFormation tool using <code class="highlighter-rouge">curl</code> and retrieves the bastion server and the load balancer. Once equipped with that data, another script
+                can start the release. The build server connects to the appropriate bastion using <code class="highlighter-rouge">SSH</code> and runs Ansible with all the relevant parameters: the container to release, the instances to deploy to, and the
+                load balancer to manage.</p>
+
+            <h2 id="docker">Docker</h2>
+            <p>Applications are deployed using Docker containers. This is very simple in the case of using Go since the application is a fully self-contained binary, and the base Docker image is just <a href="https://www.busybox.net/">Busybox</a>. Strictly
+                speaking, Docker probably doesn’t add a lot in this circumstance; I could just as easily copy the binary to each server and run it natively on the OS. Yet it does offer isolation from the rest of the system, and it keeps a uniform deployment
+                system for other services written in Python or Ruby that have more complex dependencies.</p>
+
+            <p>The build server has Docker installed and builds the image from a Dockerfile in the root of the service’s github repo. Once the image is built it is tagged with the name of the branch and pushed to the Docker Hub. At deploy time, each instance
+                running the services logs in to the Docker Hub (using ansible) and pulls the new image. Ansible also starts the container with the pertinent environment variables, ports, and volumes.</p>
+
+            <p>While there are other Docker private registry services available, I chose the Docker Hub since it’s currently the sole product offered by Docker, Inc, and I certainly benefit tremendously from their contributions to open source.</p>
+
+            <p>Importantly, as described in detail in my <a href="https://stackoverflow.com/questions/24807557/how-to-ship-logs-in-a-microservice-architecture-with-docker/24808726#24808726">StackOverflow answer</a>, I like to mount the syslog socket of the
+                host to the container using <code class="highlighter-rouge">docker run -v /dev/log:/dev/log</code>. I configure rsyslog on the host to forward logs to a central collector service (<a href="https://sumologic.com">Sumo Logic</a>. After trying
+                a number of different approaches such as running syslog within the container, using <code class="highlighter-rouge">docker logs</code>, and toying with the container’s stdout log file on the host, I find that the bind mount of the host’s
+                syslog socket to be the best way to manage logs in the container.</p>
+
+            <h2 id="enter-ansible">Enter Ansible</h2>
+            <p>Ansible is used to build instances when the first launch and to orchestrate deployments. Thanks to the <a href="https://docs.ansible.com/playbooks_vault.html">Ansible Vault</a>, I store all configuration data in the Ansible repo. Ansible also
+                has <a href="https://docs.ansible.com/docker_module.html">Docker</a> and <a href="https://docs.ansible.com/ec2_elb_module.html">ELB</a> modules. The deployment playbook looks like this:</p>
+
+            <figure class="highlight"><pre><code class="language-yaml" data-lang="yaml"><span class="c1"># Build host groups from variables passed on the CLI</span>
+<span class="c1"># This deploy playbook can be used globally on all hosts</span>
+<span class="c1"># Hosts are limited using `ansible-playbook -l`</span>
+<span class="pi">-</span> <span class="s">hosts</span><span class="pi">:</span> <span class="s">all</span>
+  <span class="c1"># Only run tasks on one host at a time</span>
+  <span class="s">serial</span><span class="pi">:</span> <span class="s">1</span>
+  <span class="s">pre_tasks</span><span class="pi">:</span>
+    <span class="c1"># TODO: Disable alerts</span>
+    <span class="c1"># TODO: Send deploy event</span>
+    <span class="c1"># TODO: Disable autoscaling</span>
+    <span class="c1"># These dynamic groups are created from variables passed on the ansible command line</span>
+   <span class="pi">-</span> <span class="s">name</span><span class="pi">:</span> <span class="s">Create dynamic groups from stack</span>
+     <span class="s">group_by</span><span class="pi">:</span> <span class="s">key=</span>
+   <span class="pi">-</span> <span class="s">name</span><span class="pi">:</span> <span class="s">Create dynamic groups from release</span>
+     <span class="s">group_by</span><span class="pi">:</span> <span class="s">key=</span>
+   <span class="pi">-</span> <span class="s">name</span><span class="pi">:</span> <span class="s">Create dynamic groups from deployment</span>
+     <span class="s">group_by</span><span class="pi">:</span> <span class="s">key=</span>
+   <span class="pi">-</span> <span class="s">name</span><span class="pi">:</span> <span class="s">Gather EC2 Metadata as facts</span>
+     <span class="s">action</span><span class="pi">:</span> <span class="s">ec2_facts</span>
+    <span class="c1"># Remove the instance from all the ELBs it is registered to (usually just 1)</span>
+    <span class="pi">-</span> <span class="s">name</span><span class="pi">:</span> <span class="s">Deregister instance from ELB</span>
+      <span class="s">local_action</span><span class="pi">:</span> <span class="s">ec2_elb</span>
+      <span class="s">args</span><span class="pi">:</span>
+        <span class="s">instance_id</span><span class="pi">:</span> <span class="s2">"</span><span class="s">"</span>
+        <span class="s">state</span><span class="pi">:</span> <span class="s1">'</span><span class="s">absent'</span>
+        <span class="s">region</span><span class="pi">:</span> <span class="s1">'</span><span class="s">us-west-2'</span>
+      <span class="c1"># Stop the "live" container</span>
+    <span class="pi">-</span> <span class="s">name</span><span class="pi">:</span> <span class="s">Stop running container</span>
+      <span class="s">docker</span><span class="pi">:</span> <span class="s">image= name=live state=absent</span>
+  <span class="s">roles</span><span class="pi">:</span>
+    <span class="pi">-</span> <span class="pi">{</span> <span class="nv">role</span><span class="pi">:</span> <span class="nv">deploy</span><span class="pi">,</span> <span class="nv">docker_env</span><span class="pi">:</span> <span class="s1">'</span><span class="s">'</span><span class="pi">,</span> <span class="nv">when</span><span class="pi">:</span> <span class="nv">release == "myservice"</span> <span class="pi">}</span>
+  <span class="s">post_tasks</span><span class="pi">:</span>
+    <span class="c1"># TODO: Run smoke/sanity tests</span>
+    <span class="c1"># Register the instances to the passed ELB names</span>
+    <span class="pi">-</span> <span class="s">name</span><span class="pi">:</span> <span class="s">Re-register instance</span>
+      <span class="s">local_action</span><span class="pi">:</span> <span class="s">ec2_elb</span>
+      <span class="s">args</span><span class="pi">:</span>
+        <span class="s">instance_id</span><span class="pi">:</span> <span class="s2">"</span><span class="s">"</span>
+        <span class="s">ec2_elbs</span><span class="pi">:</span> <span class="s2">"</span><span class="s">"</span>
+        <span class="s">state</span><span class="pi">:</span> <span class="s1">'</span><span class="s">present'</span>
+        <span class="s">region</span><span class="pi">:</span> 
+        <span class="s">wait_timeout</span><span class="pi">:</span> <span class="s">30</span>
+      <span class="s">with_items</span><span class="pi">:</span> <span class="s">elb_names</span>
+    <span class="c1"># TODO: Enable stackdriver alerts</span>
+    <span class="c1"># TODO: Enable autoscaling</span></code></pre></figure>
+
+            <p>There are some placeholders for items that are either currently handled elsewhere or still need to be completed.</p>
+
+            <h2 id="personal-deployments">Personal deployments</h2>
+            <p>TeamCity has a novel feature called a <a href="https://confluence.jetbrains.com/display/TCD8/Personal+Build">personal build</a>. A developer can push branch with a known syntax, such as <code class="highlighter-rouge">remote-run/ben/my_feature</code>,
+                and TeamCity will build it. By using this feature I’m able to provide developers with a private deployment to the cloud. I parse the branch for the username using <code class="highlighter-rouge">grep</code> in a build step, then release
+                code to a known environment for that user. In this way, each developer can have an environment that <em>exactly</em> mimics production before it ever integrates with other code.</p>
+
+            <h2 id="improvements">Improvements</h2>
+            <p>I have a bunch of improvements planned for the coming weeks:</p>
+
+            <ul>
+                <li>There is not enough testing in the current pipeline. In particular there is no integration tests. Continuous deployment without testing is a disaster waiting to happen. This is the first thing that needs attention in this model.</li>
+                <li>The build server should not log in to the bastion. Instead, the build server will put a message in a queue. I’ll write a queue worker that watches the queue for messages that kick off a release. Decoupling FTW.</li>
+                <li>I currently only release to integration, not production. Mostly because of the lack of complete testing. This will be hooked up to production once I’m comfortable with the status of testing.</li>
+            </ul>
+
+            <p>It feels damn good to have this low friction release process in place.</p>
+
+        </article>
+
+</body>
+
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>AWS re:Invent 2014: Initial Reactions to EC2 Container Service and Lambda</title>
+
+    <link rel="stylesheet" href="../../../assets/css/legacy.css">
+    <link rel="canonical" href="/2014/11/14/aws-reinvent-2014-initial-reactions.html">
+</head>
+
+<body>
+    <div class="post">
+        <header class="post-header">
+            <h1 class="post-title">AWS re:Invent 2014: Initial Reactions to EC2 Container Service and Lambda</h1>
+            <p class="post-meta">
+                posted on Nov 14, 2014
+            </p>
+            <p class="post-meta">
+
+                <span class="post-category post-category-containers"><a href="/tags/#containers">containers</a></span>
+
+                <span class="post-category post-category-ecs"><a href="/tags/#ecs">ecs</a></span>
+
+                <span class="post-category post-category-reinvent"><a href="/tags/#reinvent">reinvent</a></span>
+
+                <span class="post-category post-category-aws"><a href="/tags/#aws">aws</a></span>
+
+            </p>
+        </header>
+
+        <article class="post-content">
+            <p><br /></p>
+            <figure>
+                <a href="https://i.imgur.com/wKrYxQb.png"><img src="https://i.imgur.com/wKrYxQb.png" /></a>
+            </figure>
+
+            <p>Another re:Invent in the bag! I’m beginning to digest the new services and trends I saw after listening to the keynotes, walking the exhibition hall floor, and chatting with what feels like all 13,000 people that attended. Here are my immediate
+                impressions of the two most-hyped services since that’s all I have time for now.</p>
+
+            <p>##<a href="https://aws.amazon.com/ecs/">EC2 Container Service</a></p>
+
+            <figure>
+                <a href="https://i.imgur.com/PDj3uc4.png"><img src="https://i.imgur.com/PDj3uc4.png" /></a>
+            </figure>
+            <p>You might have heard about this thing called Docker that’s been going around. As expected, Amazon’s container service is built around Docker and the Docker Hub and promises a nice cluster abstraction to running containers on a fleet of EC2
+                instances. It even comes complete with an awesome spaceport for moving containers around! Docker CEO Ben Goleb went to bat on stage with Werner pronouncing a deep integration and partnership with Amazon.</p>
+
+            <p>First impressions are challenging here since the service basically isn’t ready yet. It’s available as a preview only, and previews aren’t being given lightly. My impression is that the AMIs aren’t available, there isn’t yet integration with
+                other services like ELB, and customizations are basic at best. Barb Darrow over at Gigaom is <a href="https://gigaom.com/2014/11/14/top-5-lessons-learned-at-aws-reinvent/">predictably underwhelmed</a> by the new service offering, calling
+                it “no Kubernetes”.</p>
+
+            <p>Still, AWS has a track record of releasing an MVP and iterating quickly. The dream is to have a generic, homogeneous fleet of compute capacity to which containers can be deployed transparently. The container service manages resources, distribution
+                of containers, scheduling, and more. The other tools in this space are greenfield, at least as far as best practices are concerned.</p>
+
+            <p>I’ve been running Docker in production settings since (stupidly) version 0.5. The product is fantastic and the benefits are real, but it’s clear that a service like this is needed to simplify the orchestration and configuration. I’m excited
+                to see this service improve rapidly.</p>
+
+            <p>##<a href="https://aws.amazon.com/lambda/">Lambda</a> Also available in preview only is Lambda, “a compute service that runs your code in response to events and automatically manages the compute resources.” When an event occurs, like a new
+                object uploaded to an S3 bucket or an message arrives on a Kinesis stream, a “trigger” calls a cloud function to process the event. Cloud functions are written in Node.js and can be daisy chained to create more complex interactions. Rumors
+                abound that additional languages may be launched soon. Lambda functions can even be triggered on a scheduled basis, which I’ll use to replace some cron jobs.</p>
+
+            <p>People that I spoke to at the conference were very impressed with this announcement. I tweeted that it replaces an entire tier of worker instances that do nothing but process streams of event data. No longer are full blown EC2 instances needed
+                for simple message processing. Mitch Garnaat (whom I didn’t have the pleasure of meeting, sadly) tweeted:</p>
+
+            <blockquote>
+                <p>A double leapfrog maneuver. Containers leapfrog virtualization and then Lambda leapfrogs containers. Well played.</p>
+            </blockquote>
+
+            <p>This is perhaps the most innovative service from AWS since the release of EC2 and S3. It dramatically simplifies running code in the cloud, lowering the bar to running services even more than PaaS tools. Consider the possibilities if an ELB
+                trigger was released so that a Lambda function could handle HTTP/S.</p>
+
+            <p>It’s not a complete application replacement, of course. Some complex systems cannot be easily modeled as purely event driven functions. And I expect some lessons will be learned the hard way when developers don’t consider the implications
+                of Lambda functions causing a recursive chain of events. Imagine that an image arrives in a bucket, triggering a Lambda function to process that image and puts it back in the bucket. If the function uploads the image to the same bucket,
+                another function might be triggered to process the already-processed image, for an inception of image processing that costs the developer for each call. AWS warned against during the session discussing Lambda.</p>
+
+            <p>People who have signed up for the preview are already getting access. I can’t wait to see what clever things people will build on Lambda.</p>
+
+            <h2 id="coming-up-next">Coming up next</h2>
+            <p>This is just a brief treatment of two of the nine services launched at re:Invent. The other big hitters were the Aurora RDS, the CodeDeploy/Commit/Pipeline services, and the Key Management Service. I’ll blog about those in an upcoming post.</p>
+
+            <p>Amazon is clearly pushing the industry it founded forward with innovative, high impact services that are exactly what customers asked for. Now let’s get to work and build something interesting.</p>
+
+        </article>
+
+</body>
+
+</html>

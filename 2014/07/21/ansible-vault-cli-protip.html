@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Ansible vault CLI</title>
+
+    <link rel="stylesheet" href="../../../assets/css/legacy.css">
+    <link rel="canonical" href="/2014/07/21/ansible-vault-cli-protip.html">
+</head>
+
+<body>
+    <div class="post">
+        <header class="post-header">
+            <h1 class="post-title">Ansible vault CLI</h1>
+            <p class="post-meta">
+                posted on Jul 21, 2014
+            </p>
+            <p class="post-meta">
+
+                <span class="post-category post-category-ansible"><a href="/tags/#ansible">ansible</a></span>
+
+                <span class="post-category post-category-security"><a href="/tags/#security">security</a></span>
+
+            </p>
+        </header>
+
+        <article class="post-content">
+            <p>Here’s a quick tip to make working with encrypted <code class="highlighter-rouge">ansible-vault</code> data a little easier. Save the vault password to a file, make an alias of <code class="highlighter-rouge">ansible-vault</code> with the
+                path to the saved file. Make two more aliases for decrypt and encrypt, then enjoy fewer keypresses for encrypting and decrypting YAML files.</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="gp">$ </span><span class="nb">echo</span> <span class="k">${</span><span class="nv">vault_pw</span><span class="k">}</span> &gt; ~/.vaultpw <span class="o">&amp;&amp;</span> chmod 600 ~/.vaultpw
+<span class="gp">$ </span><span class="nb">alias </span><span class="nv">av</span><span class="o">=</span><span class="s2">"ansible-vault --vault-password-file ~/.vaultpw "</span>
+<span class="gp">$ </span><span class="nb">alias </span><span class="nv">d</span><span class="o">=</span><span class="s2">"decrypt"</span>
+<span class="gp">$ </span><span class="nb">alias </span><span class="nv">e</span><span class="o">=</span><span class="s2">"encrypt"</span>
+<span class="gp">$ </span>av d somefile.yml
+Decryption successful
+<span class="gp">$ </span>av e somefile.yml
+Encryption successful</code></pre></figure>
+
+
+        </article>
+
+</body>
+
+</html>

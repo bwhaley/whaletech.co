@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>High availability NAT instances in AWS VPCs</title>
+
+    <link rel="stylesheet" href="../../../assets/css/legacy.css">
+    <link rel="canonical" href="/2014/10/05/ha-nat.html">
+</head>
+
+<body>
+    <div class="post">
+        <header class="post-header">
+            <h1 class="post-title">High availability NAT instances in AWS VPCs</h1>
+            <p class="post-meta">
+                posted on Oct 5, 2014
+            </p>
+            <p class="post-meta">
+
+                <span class="post-category post-category-aws"><a href="/tags/#aws">aws</a></span>
+
+                <span class="post-category post-category-vpc"><a href="/tags/#vpc">vpc</a></span>
+
+                <span class="post-category post-category-nat"><a href="/tags/#nat">nat</a></span>
+
+                <span class="post-category post-category-ha"><a href="/tags/#ha">ha</a></span>
+
+            </p>
+        </header>
+
+        <article class="post-content">
+            <p>There are plenty of things Amazon is getting right with VPCs, such as peering, VPN gateways, and fine grained security via security groups and network ACLs, but the NAT requirement is a big miss. It’s a nuisance to self-manage (and pay for)
+                multiple systems just to provide outbound Internet access for instances in private subnets. Sadly, it’s been this way for some time now.</p>
+
+            <p>There are some reasonable solutions to do this in a way that provides high availability, albeit with some complexity. Google yields a few articles on the topic. The approach <a href="http://aws.amazon.com/articles/2781451301784570">documented by Amazon</a>                uses a monitoring script to automate the route takeover process. <a href="http://uberboxen.net/blog/2014/03/04/an-alternative-approach-to-ha-nat-on-aws/">Another article</a> uses an autoscale group per zone.</p>
+
+            <p>This article describes another method to achieve on HA NAT. It’s similar to the second link above, but with a single autoscale group with one instance per zone. When an instance in a zone is marked unhealthy, autoscale boots another instance
+                to replace it. I provide all the details in code, comprising the following:</p>
+
+            <ul>
+                <li>A Packer template to build a NAT AMI, provisioned by Ansible</li>
+                <li>A CloudFormation template that creates 1) a VPC with three public and six private subnets and 2) an autoscale group that ensures a NAT in each availability zone</li>
+                <li>A script that runs at boot via user data to takeover routing</li>
+            </ul>
+
+            <h2 id="packer">Packer</h2>
+            <p><a href="http://www.packer.io/">Packer</a> is another tool from the fine folks at Hashicorp that builds machine images for multiple cloud platforms. I use it to create the NAT AMI used by the autoscale group. Find the Packer template and usage
+                information <a href="https://github.com/bwhaley/ha-nat/tree/master/packer">on GitHub</a>. Install Packer, then use the template to create an AMI for the NAT instance. Make note of the AMI ID.</p>
+
+            <p>Don’t forget to give Packer an IAM Role to use for creating the AMI. The policy can be found <a href="http://www.packer.io/docs/builders/amazon.html">in the documentation</a>.</p>
+
+            <h2 id="nat-iam-role">NAT IAM Role</h2>
+            <p>Once the AMI is created, don’t forget to create an IAM Role for the NAT instance to assume. A sample policy looks like this:</p>
+
+            <figure class="highlight"><pre><code class="language-json" data-lang="json"><span class="p">{</span><span class="w">
+   </span><span class="nt">"Version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2012-10-17"</span><span class="p">,</span><span class="w">
+   </span><span class="nt">"Statement"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+     </span><span class="p">{</span><span class="w">
+       </span><span class="nt">"Effect"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Allow"</span><span class="p">,</span><span class="w">
+       </span><span class="nt">"Action"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+         </span><span class="s2">"ec2:DescribeInstances"</span><span class="p">,</span><span class="w">
+         </span><span class="s2">"ec2:ModifyInstanceAttribute"</span><span class="p">,</span><span class="w">
+         </span><span class="s2">"ec2:DescribeSubnets"</span><span class="p">,</span><span class="w">
+         </span><span class="s2">"ec2:DescribeRouteTables"</span><span class="p">,</span><span class="w">
+         </span><span class="s2">"ec2:CreateRoute"</span><span class="p">,</span><span class="w">
+         </span><span class="s2">"ec2:ReplaceRoute"</span><span class="w">
+       </span><span class="p">],</span><span class="w">
+       </span><span class="nt">"Resource"</span><span class="p">:</span><span class="w"> </span><span class="s2">"*"</span><span class="w">
+     </span><span class="p">}</span><span class="w">
+   </span><span class="p">]</span><span class="w">
+ </span><span class="p">}</span></code></pre></figure>
+
+            <h2 id="cloudformation">CloudFormation</h2>
+            <p>The CloudFormation template also <a href="https://github.com/bwhaley/ha-nat/blob/master/cloudformation/vpc.json">found on GitHub</a> creates a VPC in the format I describe in a <a href="https://www.whaletech.co/2014/10/02/reference-vpc-architecture.html">previous blog post</a>.
+                Launch multiple VPCs using this template and then <a href="http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/vpc-peering.html">peer them</a> to recreate that model exactly.</p>
+
+            <p>Submit the template to AWS. It will ask for a name to use for the VPC, the first two octets of an address range, the name of a keypair to use on the NAT instances, and which AMI ID to use for the NAT instance. Once submitted it will create
+                the VPC, all the subnets, and launch an autoscale group with one instance per availability zone.</p>
+
+            <p>The template could be improved to have a map of regions to AMI IDs, but it will need regular updates as the AMIs are rebaked. You do rebake AMIs for patching frequently, right?</p>
+
+            <h2 id="ha-nat-bash-script">HA NAT Bash script</h2>
+            <p>The <a href="https://github.com/bwhaley/ha-nat/blob/master/packer/ha-nat.sh">NAT takeover script</a> was originally written by AWS. The CloudFormation template above tags each private subnet with <code class="highlighter-rouge">network=private</code>,
+                and the script uses this to determine which subnets are private. Using that information, the script finds the route table to update, then either creates or updates the route table to point at itself as the default gateway.</p>
+
+            <h2 id="summary">Summary</h2>
+            <p>This approach uses a single autoscale group with one instance per zone to ensure that each zone has a dedicated NAT, and that the NAT is self-healing if an instance is marked as unhealthy.</p>
+
+            <p>Some time can pass before EC2 marks an instance as unhealthy and autoscale replaces the instance. During this time the private instances in the same zone will have no default route and thus no Internet connectivity. I haven’t measured this
+                to know how long of a period it might be.</p>
+
+            <p>There’s also a chance that the NAT fails to route traffic but EC2 doesn’t mark it as unhealthy. EC2 only <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/monitoring-system-instance-status-check.html">monitors for a few specific status checks</a>:
+                loss of power or network connectivity, vaguely-defined “software or hardware issues on the host”, failed startup configuration, exhausted memory, corrupt filesystems, or an incompatible kernel. If for some reason the kernel stopped routing
+                packets or something else went wrong, EC2 would not notice and the instance would not be replaced. This could be addressed by running a script on each instance that sends a heartbeat message. If the heartbeat isn’t received, then replace
+                the instance.</p>
+
+        </article>
+
+</body>
+
+</html>

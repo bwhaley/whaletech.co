@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Improved continuous deployment using Ansible, Docker, SQS and TeamCity</title>
+
+    <link rel="stylesheet" href="../../../assets/css/legacy.css">
+    <link rel="canonical" href="/2015/03/29/deploying-to-aws-using-ansible-docker-and-teamcity.html">
+</head>
+
+<body>
+    <div class="post">
+        <header class="post-header">
+            <h1 class="post-title">Improved continuous deployment using Ansible, Docker, SQS and TeamCity</h1>
+            <p class="post-meta">
+                posted on Mar 29, 2015
+            </p>
+            <p class="post-meta">
+
+                <span class="post-category post-category-sqs"><a href="/tags/#sqs">sqs</a></span>
+
+                <span class="post-category post-category-ansible"><a href="/tags/#ansible">ansible</a></span>
+
+                <span class="post-category post-category-docker"><a href="/tags/#docker">docker</a></span>
+
+                <span class="post-category post-category-vpc"><a href="/tags/#vpc">vpc</a></span>
+
+            </p>
+        </header>
+
+        <article class="post-content">
+            <p>It hasn’t even been a full year yet since <a href="https://www.whaletech.co/2014/07/20/continuous-deployment-with-ansible-and-docker.html">my last post on continuous deployment</a> and I’ve already reimplemented a more robust system. This
+                post covers the challenges I had with that previous iteration, then the design and implementation of the new deployment platform. I hope you’ll find it useful.</p>
+
+            <h3 id="take-one">Take One</h3>
+
+            <p>My last attempt at building a CD system with Ansible, Docker and Teamcity has a few fatal flaws that renders it difficult to work with:</p>
+
+            <ol>
+                <li>I had written a custom tool that used AWS CloudFormation to create resources, then later searched those resources. This suffered from the typical “built in house” problem; it was poorly documented and maintained, and only I understood
+                    it. It was difficult to justify its place in the design and it didn’t scale well with a larger team.</li>
+                <li>The <em>micronet</em> concept was nice for security but overall too much of a burden. When running even a modest number of services, say 15-20, I found that the overhead of a dedicated VPC (including a NAT and a Bastion) per service was
+                    expensive and difficult to manage. Moreover, tools today expect that IP addresses are unique, and my VPC address spaces overlapped, causing a number of subtle errors.</li>
+                <li>The rolling deployment model is fraught with peril. Sometimes instance registration/deregistration with the ELB mysteriously failed, and no amount of Google Fu could uncover the problem. It has the side effect of long-lived servers that
+                    are never patched.</li>
+            </ol>
+
+            <p>For these reasons I opted to try a new approach. A sort of custom, naive implementation of a self-sufficient scheduler.</p>
+
+            <h3 id="building-blocks">Building Blocks</h3>
+            <p>I like to say that security and administration start from the network. I had already <a href="https://www.whaletech.co/2014/10/02/reference-vpc-architecture.html">designed a new network</a> to remove the duplication and overhead incurred by
+                the micronet concept. If you read and understand that post this one will make a lot more sense. In the new network I had a single bastion host in a dedicated management network that is peered to separate test and production networks. The
+                bastion is the only point of entry to the environment other than the public facing web servers or ELBs, and this made it simpler to interact with the environment externally.</p>
+
+            <p>I considered tools such as <a href="https://github.com/Netflix/asgard">Netflix’s Asgard</a> that release new code by replacing launch configurations and autoscale groups (read up <a href="http://docs.aws.amazon.com/AutoScaling/latest/DeveloperGuide/GettingStartedTutorial.html">here</a>                if you don’t know about this). This approach is appealing but I wasn’t excited about introducing a complex java application that I didn’t understand (I’m sure the Netflix folks out there would beg to differ). So rather than implement Asgard,
+                I set about recreating some of its functionality using Ansible.</p>
+
+            <p>Ansible has great integration with AWS, with modules available for EC2, S3, Autoscaling, CloudWatch, ELB, EBS volumes, Route53, and more. Some argue that deployment is a complex operation requiring a stateful system. They’re probably right,
+                and in that case Ansible doesn’t quite fit the bill, but I decided I could sacrifice some features that could be enabled by a stateful system to simplify the process.</p>
+
+            <p>I’ve enjoyed working with Docker in production environments since around version 0.5. I’ve had my fair share of challenges with it, documented elsewhere on this blog. I tend to run a single container per host. Sometimes people ask me, “What’s
+                the point? Just run your app native on the OS.” I like the isolation and the uniform deployment that it offers. Every app is just a container and an image. The underlying host is just the same.</p>
+
+            <p>I stuck with TeamCity. I like the templates and the subprojects. I find the interface clean and easy to navigate. I like the real time build log that shows the status of builds (and deploys) as they happen. I wish it wasn’t in Java, but the
+                install process mostly gets out of the way. Once it’s set up it just works.</p>
+
+            <h3 id="teamcity-build-configurations-and-docker-images">TeamCity Build Configurations and Docker Images</h3>
+            <p>The first step in deployment is actually having software ready to deploy. Thus, the genesis of a deployment is a commit. The <a href="https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow">git flow model</a> works nicely
+                with continuous deployment. In my case, TeamCity polls certain Github branches for a commit. When a commit is detected on one of the monitored branches, the build is triggered. Deployment is part of the same build process in my case, but
+                it could also be triggered by the completion of a successful build.</p>
+
+            <p>Which branches to poll becomes an important consideration. I like to have one branch per environment in each repository that is continuously deployed. For example, the branches might be develop, stage, and master. When new code is ready, the
+                developer merges code first to develop and pushes to Github. The build runs the tests, builds a docker image, and the final step releases the code to a development environment in AWS. The same code can be released to a staging and production
+                environment by simple git merges.</p>
+
+            <p>TeamCity build configs have parameters so that builds can be reused by multiple projects. I use these parameters to identify the <em>service</em> (e.g. the application) and the <em>environment</em>, as well as info about which docker repo
+                to push builds to and the credentials to use.</p>
+
+            <p>The build artifact is a Docker image. There is a private repository on the Docker Hub for each service. Each image is tagged with the short git SHA from which that image was built using <code class="highlighter-rouge">docker build -t=&lt;namespace&gt;/&lt;repo&gt;:&lt;git-short-sha&gt; .</code>.
+                In this way it is possible to build the image just one time and reuse the same Docker image in each environment.</p>
+
+            <p>Visually, the process looks something like this:</p>
+
+            <figure class="half">
+                <img src="https://i.imgur.com/ZfqHLU9.jpg" />
+            </figure>
+
+            <p>The Docker registry API exposes the available tags associated with a repo. This bash snippet will check if an image with a given SHA already exists. The <code class="highlighter-rouge">%var%</code> variables are TeamCity syntax for build parameters.</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">GIT_HASH_SHORT</span><span class="o">=</span><span class="k">$(</span>/usr/bin/git log --abbrev-commit --pretty<span class="o">=</span>oneline | /usr/bin/head -1|/usr/bin/awk <span class="s1">'{print $1}'</span><span class="k">)</span>
+<span class="nv">DOCKER_INDEX</span><span class="o">=</span>https://index.docker.io/v1/repositories/%docker_repo%/tags
+curl -s --user %docker_hub_username%:%docker_hub_password% <span class="k">${</span><span class="nv">DOCKER_INDEX</span><span class="k">}</span> | grep <span class="k">${</span><span class="nv">GIT_HASH_SHORT</span><span class="k">}</span>
+<span class="k">if</span> <span class="o">[</span> <span class="nv">$?</span> -eq 0 <span class="o">]</span>
+<span class="k">then
+    </span><span class="nb">echo</span> <span class="s2">"This tag already exists on the remote image repository; skipping this build"</span>
+    <span class="nb">exit </span>0
+<span class="k">fi</span></code></pre></figure>
+
+            <h3 id="deployments-using-ansible">Deployments using Ansible</h3>
+            <p>Once the docker image exists, the final step in the TeamCity build process is to SSH to the bastion server and run an Ansible playbook. The playbook implements the blue/green deployment model in much the same way that Asgard does, <a href="https://cloudnative.io/blog/2015/02/the-dos-and-donts-of-bluegreen-deployment/">as documented in this post by CloudNative</a>.
+                Step-by-step the process looks like this:</p>
+
+            <ol>
+                <li>Find the current autoscaling group</li>
+                <li>Generate user data for instances in the new launch config</li>
+                <li>Create a new launch config, include the <em>service</em>, <em>env</em>, and <em>docker_tag</em> EC2 tags and using the user data from step 2</li>
+                <li>Create a new autoscaling group using the launch config from step 3</li>
+                <li>Wait for instances to come online and be healthy</li>
+                <li>Terminate the old autoscaling group using the info from step 1.</li>
+            </ol>
+
+            <p>This assumes that it’s okay for two versions of the app to be running simultaneously. Also, database schema migrations must be managed by the user - they’re not magically handled somehow during this process.</p>
+
+            <p>I did <a href="https://github.com/ansible/ansible-modules-core/issues/383">fight a few bugs</a> in the autoscaling module. In particular, the Ansible code that waits for instances to come online (step 5) was marking instances as healthy before
+                they actually were. But things worked swimmingly once solving that pesky problem.</p>
+
+            <h3 id="bootstrapping-new-instances">Bootstrapping new instances</h3>
+            <p>EC2 user data is a method to initialize instances. In chef or puppet, it might be used to run the agent against the server. You need to either allow auto signing of certificates to new servers or solve the auth problem in some other way. Using
+                ansible, some people use <a href="http://www.stavros.io/posts/automated-large-scale-deployments-ansibles-pull-mo/">pull mode</a>.</p>
+
+            <p>I didn’t want to have ansible on each instance. I use ansible vault to store sensitive config data like database credentials and API keys, and I didn’t want the passphrase or any other secrets baked in to the image. So my bootstrap process
+                is a little different. The user data for each instance in an autoscale group drops a message in an SQS queue indicating its IP address, service, environment, and Docker tag. A daemon on another host (I use the bastion) polls this queue,
+                and runs Ansible on the instance when it boots. Like this:</p>
+
+            <figure class="half">
+                <img src="https://i.imgur.com/KLd4U4U.jpg" />
+            </figure>
+
+            <p>This scales nicely, avoids keeping any sort of secret on the instances themselves, and can support many different services simultaneously. The <code class="highlighter-rouge">ansible-playbook ... myapp.yml</code> step can do all the necessary
+                steps to provision an instance. In my case, this means pulling and running a docker image. It might mean running a few containers, or adding users and configuring NTP, or any number of other things. But the instance itself never needs
+                ansible installed, nor any git repositories or private keys.</p>
+
+            <p>In order for instances to send messages to the queue they need to be part of an IAM role that allows access. I use an <a href="http://docs.aws.amazon.com/IAM/latest/UserGuide/policies-managed-vs-inline.html">IAM managed policy</a> that looks
+                like this:</p>
+
+            <figure class="highlight"><pre><code class="language-json" data-lang="json"><span class="p">{</span><span class="w">
+  </span><span class="nt">"Version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2012-10-17"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"Statement"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+    </span><span class="p">{</span><span class="w">
+      </span><span class="nt">"Sid"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Stmt1424212450000"</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"Effect"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Allow"</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"Action"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="s2">"sqs:SendMessage"</span><span class="w">
+      </span><span class="p">],</span><span class="w">
+      </span><span class="nt">"Resource"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="s2">"arn:aws:sqs:us-west-2:012345678901:deploy"</span><span class="w">
+      </span><span class="p">]</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">]</span><span class="w">
+</span><span class="p">}</span></code></pre></figure>
+
+            <p>I also bake the <a href="http://aws.amazon.com/cli/">AWS CLI tool</a> in to the image to simplify sending the message.</p>
+
+            <h3 id="wrapping-up">Wrapping up</h3>
+            <p>I’ve <a href="https://github.com/bwhaley/asg_deploy">shared the code I use for this process on github</a>. it includes:</p>
+
+            <ul>
+                <li>An ansible role for replacing autoscale groups</li>
+                <li>User data that will send a deployment message to SQS</li>
+                <li>A python app for polling SQS and deserializing deploy messages. I run this on the bastion via supervisord.</li>
+                <li>A bonus AWS resources role that I use to make sure ELBs and security groups exist before releasing an autoscaling group</li>
+            </ul>
+
+            <p>The code is not well documented so contact me or leave a comment with any questions.</p>
+
+        </article>
+
+</body>
+
+</html>

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Tooling around with CloudFormation helpers</title>
+
+    <link rel="stylesheet" href="../../../assets/css/legacy.css">
+    <link rel="canonical" href="/2017/02/28/Tooling-around-with-CloudFormation-helpers.html">
+</head>
+
+<body>
+    <div class="post">
+        <header class="post-header">
+            <h1 class="post-title">Tooling around with CloudFormation helpers</h1>
+            <p class="post-meta">
+                posted on Feb 28, 2017
+            </p>
+            <p class="post-meta">
+
+                <span class="post-category post-category-AWS"><a href="/tags/#AWS">AWS</a></span>
+
+                <span class="post-category post-category-cloudformation"><a href="/tags/#cloudformation">cloudformation</a></span>
+
+            </p>
+        </header>
+
+        <article class="post-content">
+            <p>Pretty much everybody can agree that working with CloudFormation is a bit, shall we say, cumbersome. Dare I attempt to recite its shortcomings? No, I dare not. Okay, maybe just a few:</p>
+            <ul>
+                <li>Until relatively recently, everything had to be done in JSON, which is terrible and allows no comments. Then AWS added YAML, which is better, but still a bit unwieldy.</li>
+                <li>Working with multiple stacks with dependencies is downright painful. There is support for <a href="http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/walkthrough-crossstackref.html">cross-stack references</a>, but that’s also
+                    quite painful.</li>
+                <li>Sharing configuration via parameters sucks.</li>
+                <li>The workflow of creating a template, validating the syntax, submitting it to AWS, waiting for something to fail, rinse &amp; repeat is horrendously time consuming.</li>
+            </ul>
+
+            <p>All bets are off when you’re trying to manage dozens of CF templates.</p>
+
+            <h3 id="so-terraform">So, Terraform</h3>
+            <p>I know a bunch of people will be red in the face yelling at me to “Use Terraform! It’s so much better! It will solve all your problems!”</p>
+
+            <p>I have the utmost respect for Hashicorp and their tooling. They’ve improved the situation for sys admins &amp; devs &amp; DevAdmins and all the other cloud people more than I can ever hope to. I &lt;3 most of their tools. I went to a talk
+                by Mitchell H just the other week at Nike. I learned stuff about graph theory and terraform.</p>
+
+            <p>I have tried to like terraform. I tried pretty hard about a year ago. It had some rough edges, and I understand that it has changed a lot since. But I still don’t trust it. At the time of writing there are 1,613 open issues and 254 pull requests.
+                One of the issues is <a href="https://github.com/hashicorp/terraform/issues/5006">mine</a>. It has been open since Feb. 4 2016. It’s a pretty serious bug that causes EBS volumes to be unexpectedly deleted. A bunch of other people have
+                +1’d the issue. Beyond labels, nobody on the Terraform team has even acknowledged it. One of the biggest benefits is the multi-provider support, which I don’t need. I even checked it out again for this project and found that it doesn’t
+                have VPC IPv6 support yet. And dammit, CloudFormation <em>just works</em> for me, so plz stop yelling at me about it.</p>
+
+            <h3 id="fixing-cloudformation">Fixing CloudFormation</h3>
+            <p>I have some ideas to make CF a bit easier to work with, but I figured that before I built Yet Another Tool I should take a quick peek at what’s out there already. Some searching revealed a few promising candidates:</p>
+
+            <ul>
+                <li><a href="https://github.com/envato/stack_master">StackMaster</a></li>
+                <li><a href="https://github.com/cloudreach/sceptre">sceptre</a> from CloudReach</li>
+                <li><a href="https://github.com/remind101/stacker">Stacker</a> from Remind</li>
+                <li><a href="https://github.com/daidokoro/qaz">qaz</a></li>
+            </ul>
+
+            <p>At first glance, qaz was really appealing because it’s written in Go and attempts only a minimal abstraction over CloudFormation. But it’s the brand new kid on the block and I need to use this sucker to manage production infrastructure, so
+                I didn’t kick the tires on it too much. It’s definitely promising.</p>
+
+            <p>StackMaster supports diffs, change sets, and, enticingly, GPG parameter encryption. I like that stuff. But it’s written in Ruby, and I get a higher dose of Ruby than I’d like with Chef. I tend to tune out when I see terms like SparkleFormation.
+                I didn’t necessarily want to learn another DSL, and the Ruby tooling (RVM, gem) makes me want to break keyboards. But for people that are better at Ruby than I am, this is probably a good choice.</p>
+
+            <p>Sceptre is on the minimalist end. You still need to write your own CF templates (in JSON or YAML). It provides simple wrappers for CRUD operations and presents a reasonable CLI. I want something with a bit more programmatic control and more
+                features.
+            </p>
+
+            <p>Enter Stacker, the tools that fits the bill for me. Python with Troposphere-based “blueprints” provide the full power of Python. A very intuitive, simple CLI with most of the features of StackMaster but without the Ruby. Plus it’s from the
+                team at Remind, and I’ve followed their work for some time now. (Check out <a href="https://github.com/remind101/empire">Empire</a>, you might like it.)</p>
+
+            <p>The rest of this post is about my experience getting started with Stacker.</p>
+
+            <h2 id="first-steps-with-stacker">First steps with Stacker</h2>
+            <p>Stacker has some <a href="http://stacker.readthedocs.io/en/latest/">very nice docs</a> and <a href="https://github.com/remind101/stacker_blueprints">examples</a> but nothing that serves as an introductory tutorial. The following is more or
+                less my raw notes on getting using Stacker for the first time.</p>
+
+            <p>Obvious first step: install stacker and setup a work space</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="gp">$ </span>virtualenv stacker_venv
+<span class="gp">$ </span><span class="nb">source </span>stacker_venv/bin/activate
+<span class="gp">$ </span>pip install --upgrade pip setuptools
+<span class="gp">$ </span>pip install stacker
+<span class="gp">$ </span>stacker --version
+stacker 0.8.6
+<span class="gp">$ </span>mkdir -p stacker/<span class="o">{</span>blueprints,config/environments<span class="o">}</span></code></pre></figure>
+
+            <p>Now it’s time to dive in to the deep end. I need to implement my <a href="https://whaletech.co/2014/10/02/reference-vpc-architecture.html">reference vpc architecture</a> with just a few changes. Since that post, AWS released NAT gateways (beautiful,
+                I’d been waiting for those suckers for years), and IPv6 support (even more beautiful because I want the Internet to continue to scale). I work best from examples, and I’m lazy, so I’m going to start with Remind’s <a href="https://github.com/remind101/stacker_blueprints/blob/master/stacker_blueprints/vpc.py">VPC blueprint</a>.</p>
+
+            <ol>
+                <li>Copy Remind’s <a href="https://github.com/remind101/stacker_blueprints/blob/master/stacker_blueprints/vpc.py">vpc.py</a> to <code class="highlighter-rouge">blueprints/vpc.py</code></li>
+                <li>Copy Remind’s <a href="https://github.com/remind101/stacker_blueprints/blob/master/conf/example.yaml">config.py</a> to <code class="highlighter-rouge">config/config.yaml</code></li>
+            </ol>
+
+            <p>To achieve my reference VPC I’ll need 3 environments: Management, NonProd, and Prod. Stacker has support for environments, so this starts with simply <code class="highlighter-rouge">touch config/environments/{management.env,nonprod.env,prod.env}</code>.
+                Perfect!
+            </p>
+
+            <p>Time for some customizations, starting with config.</p>
+
+            <h3 id="configuring-stacker">Configuring Stacker</h3>
+            <p>The config from <code class="highlighter-rouge">example.yaml</code> is a great place to start but I needed some edits.</p>
+
+            <p>I have this custom <code class="highlighter-rouge">blueprints/</code> location for my stacks so I need to let Stacker know about that. I added</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash">sys_path: .</code></pre></figure>
+
+            <p>to the top of <code class="highlighter-rouge">config.yaml</code>. This means I can only execute <code class="highlighter-rouge">stacker</code> commands from that <code class="highlighter-rouge">stacker/</code> directory I created above, a
+                limitation that I’m fine with.</p>
+
+            <p>I also wanted to customize the S3 bucket where the templates are uploaded. I added</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash">stacker_bucket: my-bucket</code></pre></figure>
+
+            <p>after <code class="highlighter-rouge">sys_path</code> in <code class="highlighter-rouge">config.yaml</code>.</p>
+
+            <p>Finally time to customize the CF stacks that Stacker will manage. Without getting to deep in the woods, I ended up with a VPC stack that looks like this:</p>
+
+            <figure class="highlight"><pre><code class="language-yaml" data-lang="yaml"><span class="pi">-</span> <span class="s">name</span><span class="pi">:</span> <span class="s">vpc</span>
+  <span class="s">class_path</span><span class="pi">:</span> <span class="s">blueprints.vpc.VPC</span>
+  <span class="c1"># Flag to enable/disable a stack. Default is true</span>
+  <span class="s">enabled</span><span class="pi">:</span> <span class="s">true</span>
+  <span class="s">parameters</span><span class="pi">:</span>
+    <span class="s">InstanceType</span><span class="pi">:</span> <span class="s">m3.medium</span>
+    <span class="s">SshKeyName</span><span class="pi">:</span> <span class="s">${SshKeyName}</span>
+    <span class="s">ImageName</span><span class="pi">:</span> <span class="s">NAT</span>
+    <span class="c1"># Only build 2 AZs, can be overridden with -p on the command line</span>
+    <span class="s">AZCount</span><span class="pi">:</span> <span class="s">3</span>
+    <span class="s">PublicSubnets</span><span class="pi">:</span> <span class="s">${PublicSubnets}</span>
+    <span class="s">PrivateSubnets</span><span class="pi">:</span> <span class="s">${PrivateSubnets}</span>
+    <span class="s">DataSubnets</span><span class="pi">:</span> <span class="s">${DataSubnets}</span>
+    <span class="s">CidrBlock</span><span class="pi">:</span> <span class="s">${CidrBlock}</span>
+    <span class="c1"># This zone will be added to the dns search path of the DHCP Options</span>
+    <span class="s">InternalDomain</span><span class="pi">:</span> <span class="s">${InternalDomain}</span>
+    <span class="s">UseNatGateway</span><span class="pi">:</span> <span class="s">true</span></code></pre></figure>
+
+            <p>This differs from the example config in a few important ways:</p>
+
+            <ul>
+                <li>Stacker will look for the VPC class in <code class="highlighter-rouge">blueprints/vpc.py</code> (the <code class="highlighter-rouge">class_path</code> setting)</li>
+                <li>I’ve set several of the parameters (<code class="highlighter-rouge">${SshKeyName}</code>, <code class="highlighter-rouge">${PublicSubnets}</code>, <code class="highlighter-rouge">${PrivateSubnets}</code>, etc) to be variables that are
+                    read from environment files. This let’s me customize on a per-environment basis.</li>
+            </ul>
+
+            <p>Setting up the environments takes no time at all. Each environment (not yaml, but it looks like it) file looks like this:</p>
+
+            <figure class="highlight"><pre><code class="language-yaml" data-lang="yaml"><span class="s">namespace</span><span class="pi">:</span> <span class="s">management</span>
+<span class="s">SshKeyName</span><span class="pi">:</span> <span class="s">management-key</span>
+<span class="s">CidrBlock</span><span class="pi">:</span> <span class="s">172.20.0.0/16</span>
+<span class="s">PublicSubnets</span><span class="pi">:</span> <span class="s">172.20.0.0/24, 172.20.1.0/24, 172.20.2.0/24</span>
+<span class="s">PrivateSubnets</span><span class="pi">:</span> <span class="s">172.20.10.0/24, 172.20.11.0/24, 172.20.12.0/24</span>
+<span class="s">DataSubnets</span><span class="pi">:</span> <span class="s">172.20.20.0/24, 172.20.21.0/24, 172.20.22.0/24</span>
+<span class="s">InternalDomain</span><span class="pi">:</span> <span class="s">mydomain.com</span></code></pre></figure>
+
+            <p>The <code class="highlighter-rouge">namespace</code> sets up a naming convention to disambiguate stacks. Set up one namespace for each environment and customize accordingly.</p>
+
+            <h3 id="customizing-the-vpc-blueprint">Customizing the VPC blueprint</h3>
+            <p>Stacker blueprints are python code using the excellent <a href="https://github.com/cloudtools/troposphere">troposphere</a> library which I’ve used quite a lot in the past. I had to make a few minor edits to the default VPC class for my needs.
+                I won’t go in to all the detail about those edits because customizing the blueprints is straightforward if you understand troposphere. If you don’t, go learn it, you’ll never go back to manually editing templates.</p>
+
+            <p>I did need to drop in to the support Slack room to ask a quick question. The default VPC blueprint does not name the resources, and I wanted to names so that things are identifiable in the AWS console. For example, the management VPC needed
+                the <code class="highlighter-rouge">Name: management</code> tag. <a href="https://twitter.com/phobologic">@phobologic</a> (Mike Barrett) was super helpful and gave me the answer right away. To refer to a namespace from within the blueprint,
+                use <code class="highlighter-rouge">self.context.get_fqn(self.name)</code>. I modified the resource tags to include namespaces in the names like this:</p>
+
+            <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">vpc_name_tag</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">get_fqn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<span class="n">t</span><span class="o">.</span><span class="n">add_resource</span><span class="p">(</span><span class="n">ec2</span><span class="o">.</span><span class="n">VPC</span><span class="p">(</span>
+    <span class="n">VPC_NAME</span><span class="p">,</span>
+    <span class="n">CidrBlock</span><span class="o">=</span><span class="n">Ref</span><span class="p">(</span><span class="s">"CidrBlock"</span><span class="p">),</span>
+    <span class="n">EnableDnsSupport</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+    <span class="n">EnableDnsHostnames</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+    <span class="n">Tags</span><span class="o">=</span><span class="n">Tags</span><span class="p">(</span><span class="n">Name</span><span class="o">=</span><span class="n">vpc_name_tag</span><span class="p">)))</span></code></pre></figure>
+
+            <h3 id="building-the-stack">Building the stack</h3>
+            <p>The fun part arrives: running the tool. Stacker makes it really easy to launch stacks with support for diff’ing the current state of a stack with the new state, tailing the cloudformation logs as the stack is being updated/created, and, my
+                personal favorite, <a href="https://aws.amazon.com/blogs/aws/new-change-sets-for-aws-cloudformation/">change sets</a>. I used this command to create the management stack:</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="gp">$ </span>stacker build -r us-west-2 --stacks vpc -v -t config/environments/management.yml config/config.yml</code></pre></figure>
+
+            <p>Worked on the first try.</p>
+
+            <h3 id="summing-it-up">Summing it up</h3>
+            <p>Stacker is a huge improvement over working with raw CloudFormation. I’m working with a new client to build an ECS-based infrastructure, and I’m pretty excited to implement it all without typing any JSON and a minimal amount of YAML. I intend
+                to integrate the Stacker workflowy in a Jenkins pipeline just as we do for the application code. The Stacker team is preparing the 1.0 release which will come with a bunch of improvements and fixes. Can’t wait to see what they build next.</p>
+
+        </article>
+
+</body>
+
+</html>

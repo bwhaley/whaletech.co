@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Securing EC2 User Data</title>
+
+    <link rel="stylesheet" href="../../../assets/css/legacy.css">
+    <link rel="canonical" href="/2015/02/25/securing-ec2-user-data.html">
+</head>
+
+<body>
+    <div class="post">
+        <header class="post-header">
+            <h1 class="post-title">Securing EC2 User Data</h1>
+            <p class="post-meta">
+                posted on Feb 25, 2015
+            </p>
+            <p class="post-meta">
+
+                <span class="post-category post-category-security"><a href="/tags/#security">security</a></span>
+
+                <span class="post-category post-category-userdata"><a href="/tags/#userdata">userdata</a></span>
+
+                <span class="post-category post-category-certificates"><a href="/tags/#certificates">certificates</a></span>
+
+                <span class="post-category post-category-encryption"><a href="/tags/#encryption">encryption</a></span>
+
+            </p>
+        </header>
+
+        <article class="post-content">
+            <p><a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html">User Data</a> is that feature that allows you to configure new instances at boot using parameters or arbitrary scripts. It’s an essential feature for building
+                automated systems, often used to run a management daemon or to configure services.</p>
+
+            <p>Commonly, instances need access to secrets as part of the initialization process. A database connection string, keys to an API, or other sensitive data need to be distributed to the instance, and user data is a handy way to distribute those
+                secrets.
+            </p>
+
+            <p>But user data is not encrypted. It is exposed via the web console, in a file on disk, and to any process running on the instance via the instance metadata. The docs even warn against using it for anything sensitive. Some web app attacks have
+                been known to seek access to user data, hoping to reveal secrets and access info.</p>
+
+            <p>Here’s one method to secure those secrets and still preserve the usefulness of user data.</p>
+
+            <p>Generate a public/private keypair using openssl</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash">openssl req -nodes -x509 -days 10000 -newkey rsa:4096 -keyout private.key -out public.crt -subj <span class="s1">'/'</span></code></pre></figure>
+
+            <p>Bake the private key in to the AMI. I do this with Packer. The provisioner section of the Packer template might look like this:</p>
+
+            <figure class="highlight"><pre><code class="language-json" data-lang="json"><span class="s2">"provisioners"</span><span class="err">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+    </span><span class="p">{</span><span class="w">
+      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"file"</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"source"</span><span class="p">:</span><span class="w"> </span><span class="s2">"\\{\\{user private_key_file\\}}"</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"destination"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/tmp/private.key"</span><span class="w">
+    </span><span class="p">},</span><span class="w">
+    </span><span class="p">{</span><span class="w">
+      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"shell"</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"start_retry_timeout"</span><span class="p">:</span><span class="w"> </span><span class="s2">"10m"</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"inline"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="s2">"sudo mv /tmp/private.key /etc/ssl/private/private.key"</span><span class="w">
+      </span><span class="p">]</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">]</span></code></pre></figure>
+
+            <p>Use the public key to encrypt the bootstrap script, including secrets. I use <code class="highlighter-rouge">smime</code> to work around length limits.</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash">  <span class="nv">$ </span>cat /tmp/bootstrap.txt
+  <span class="c"># Start two docker containers that need some data</span>
+  <span class="nv">db</span><span class="o">=</span><span class="s2">"mysql://username:password@somehost:3306/somedb"</span>
+  <span class="nv">apikey</span><span class="o">=</span><span class="s2">"some_api_secret_key"</span>
+  docker run --name <span class="s2">"first container"</span> -e <span class="nv">apikey</span><span class="o">=</span><span class="nv">$apikey</span> -d MyImage MyCommand
+  docker run --name <span class="s2">"second container"</span> -e <span class="nv">apikey</span><span class="o">=</span><span class="nv">$apikey</span> -d MyOtherImage MyOtherCommand
+  <span class="nv">$ </span>openssl smime --encrypt -aes256 -binary -outform D -in /tmp/bootstrap.txt /tmp/public.key | openssl base64 -e &gt; /tmp/encrypted.b64</code></pre></figure>
+
+            <p>Now embed the encrypted, encoded script in a wrapper that decrypts using the private key, and use that as the user data.</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash">  <span class="c">#!/usr/bin/env bash -x</span>
+  <span class="nb">exec</span> &gt;&gt; /tmp/userdata.log 2&gt;&amp;1
+
+  cat <span class="sh">&lt;&lt; END &gt; /tmp/bootstrap.dat
+  &lt;contents of /tmp/encrypted.b64&gt;
+  END
+</span>  <span class="nv">decrypted_blob</span><span class="o">=</span><span class="k">$(</span>cat /tmp/bootstrap.dat | openssl base64 -d | openssl smime -decrypt -inform -D binary -inkey /path/to/secret.key
+  <span class="nb">eval</span> <span class="s2">"</span><span class="k">${</span><span class="nv">decrypted_blob</span><span class="k">}</span><span class="s2">"</span>
+  rm /tmp/bootstrap.dat
+  <span class="c"># Could also clean up the secret key here if not needed again</span></code></pre></figure>
+
+            <p>Note that this is subject to the user data size limit of 16KB.</p>
+
+        </article>
+
+</body>
+
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>EC2 Container Service Hands On</title>
+
+    <link rel="stylesheet" href="../../../assets/css/legacy.css">
+    <link rel="canonical" href="/2014/12/29/ec2-container-service-first-impressions.html">
+</head>
+
+<body>
+    <div class="post">
+        <header class="post-header">
+            <h1 class="post-title">EC2 Container Service Hands On</h1>
+            <p class="post-meta">
+                posted on Dec 29, 2014
+            </p>
+            <p class="post-meta">
+
+                <span class="post-category post-category-containers"><a href="/tags/#containers">containers</a></span>
+
+                <span class="post-category post-category-ecs"><a href="/tags/#ecs">ecs</a></span>
+
+                <span class="post-category post-category-docker"><a href="/tags/#docker">docker</a></span>
+
+                <span class="post-category post-category-ec2"><a href="/tags/#ec2">ec2</a></span>
+
+                <span class="post-category post-category-aws"><a href="/tags/#aws">aws</a></span>
+
+            </p>
+        </header>
+
+        <article class="post-content">
+            <h4 id="please-note-ecs-has-undergone-major-updates-since-this-post-see-the-latest-from-aws">Please note: ECS has undergone major updates since this post! See the latest <a href="https://aws.amazon.com/ecs/">from AWS</a>.</h4>
+
+            <p>I signed up for access to ECS when it was announced at reInvent, but didn’t get in to the preview until December 18. I spent the past week kicking back and watching Anki’s data ingest pipeline handle the insane Christmas traffic, and now that
+                we’re stabilized I’ve had a chance to take ECS for a spin. Here are some notes and observations about my experience using it for the first time.</p>
+
+            <p>The service can be described most simply as follows:</p>
+
+            <ol>
+                <li>Create a cluster of one or more EC2 instances that run an ECS agent.</li>
+                <li>Register task definitions that describe what containers to run and how to run them</li>
+                <li>Run tasks on the cluster</li>
+            </ol>
+
+            <p>The ECS API is a coordination service that stores the task definitions and runs tasks on the compute cluster. It also tracks the state of each instance, like how many and which containers are running, and the status of the tasks that run on
+                the cluster over time.</p>
+
+            <p>Simple enough to describe, but can it be used to build a robust infrastructure?</p>
+
+            <h2 id="setting-up">Setting Up</h2>
+            <p>I started with the AWS docs on <a href="http://docs.aws.amazon.com/AmazonECS/latest/developerguide/get-set-up-for-amazon-ecs.html">Setting Up</a>. I breezed past the boilerplate at the beginning, pausing only to create the IAM role for the
+                container instances to assume. The only interface to ECS currently is via a preview version of the CLI tool; there’s no console.</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="c"># Installing the CLI tool on a Mac</span>
+<span class="gp">$ </span>curl https://s3.amazonaws.com/ecs-preview-docs/amazon-ecs-cli-preview.tar.gz | tar xfvz -
+<span class="gp">$ </span><span class="nb">cd </span>amazon-ecs-cli-preview/awscli-bundle/ <span class="o">&amp;&amp;</span> python ./install
+<span class="o">[</span>snip]</code></pre></figure>
+
+            <p>After installing the CLI, I launched two instances in the default cluster using the pre-baked ECS image, which is based on Amazon Linux. It is also possible to <a href="http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ECS_agent.html">run the agent on your own instances and AMIs</a>.
+                When the instances came online I ran <code class="highlighter-rouge">aws ecs list-container-instances</code>, which showed the IDs as described in the docs.</p>
+
+            <h2 id="the-agent">The Agent</h2>
+            <p>I logged in and started looking around, starting with <code class="highlighter-rouge">/etc/ecs/</code> since it’s mentioned in the docs. The agent configuration and an init script to start the agent live there. The init script downloads the
+                agent’s Docker image, if necessary, and runs the agent as container on the instance. The image is downloaded as a tarball and imported to the docker daemon using <code class="highlighter-rouge">docker load</code> rather than being pulled
+                from a registry.</p>
+
+            <p>The agent is written in Go and is <a href="https://github.com/aws/amazon-ecs-agent">open source</a>. The runtime is a single static binary with a Docker image that’s only 7MB: the size of the agent binary plus the <a href="https://registry.hub.docker.com/_/scratch/">official scratch image</a>                and an SSL certificate store to trust.</p>
+
+            <p>It’s a very clean model for running an agent and one that I’d love to see more vendors adopt. A docker registry isn’t needed because the image is so small. The agent opens a websocket connection to AWS to poll for updates, so it doesn’t even
+                expose any ports on the network. It doesn’t require any credentials beyond the instance’s IAM role. On the instance you can query the agent on localhost to find the cluster and instance identifiers:</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="gp">$ </span>curl localhost:51678/v1/metadata|./jq <span class="s1">'.'</span></code></pre></figure>
+
+            <figure class="highlight"><pre><code class="language-json" data-lang="json"><span class="p">{</span><span class="w">
+  </span><span class="nt">"ClusterArn"</span><span class="p">:</span><span class="w"> </span><span class="s2">"arn:aws:ecs:us-east-1:792379844846:cluster/default"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"ContainerInstanceArn"</span><span class="p">:</span><span class="w"> </span><span class="s2">"arn:aws:ecs:us-east-1:792379844846:container-instance/90ccf398-f371-432d-b832-052c4daf2357"</span><span class="w">
+</span><span class="p">}</span></code></pre></figure>
+
+            <p>Logs are available in <code class="highlighter-rouge">/var/log/ecs/</code>. That’s the best place to look when troubleshooting a problem with the agent or with the tasks that it’s running.</p>
+
+            <h2 id="tasks">Tasks</h2>
+            <p>Apps must be described in order to run as Docker containers on an ECS cluster. This is done with <strong>task definitions</strong>, which are json-formatted descriptions of how to run containers. They include parameters such as the image to
+                use, ports to expose, environment variables, and a name for the container (refer to the <a href="http://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_defintions.html">complete list of parameters</a>). A <strong>task</strong>                is the runtime invocation of a task definition. So you create the task definition, then run it as a task on the cluster. The API communicates with the agents about tasks via the aforementioned websocket connection.</p>
+
+            <p>ECS uses the term <strong>family</strong> to describe a series of related task definitions. Over time the definition may change. If you needed to change an env var, for example, or to expose a new port, you’d register a revision to the same
+                family. Each revision can be invoked to run on the cluster.</p>
+
+            <p>Here’s a simple sample definition from the docs. It runs sleep for 6 minutes in a busybox container:</p>
+
+            <figure class="highlight"><pre><code class="language-json" data-lang="json"><span class="p">[</span><span class="w">
+  </span><span class="p">{</span><span class="w">
+    </span><span class="nt">"environment"</span><span class="p">:</span><span class="w"> </span><span class="p">[],</span><span class="w">
+    </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"sleep"</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"image"</span><span class="p">:</span><span class="w"> </span><span class="s2">"busybox"</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"cpu"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"portMappings"</span><span class="p">:</span><span class="w"> </span><span class="p">[],</span><span class="w">
+    </span><span class="nt">"entryPoint"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+      </span><span class="s2">"/bin/sh"</span><span class="w">
+    </span><span class="p">],</span><span class="w">
+    </span><span class="nt">"memory"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+      </span><span class="s2">"sleep"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"360"</span><span class="w">
+    </span><span class="p">],</span><span class="w">
+    </span><span class="nt">"essential"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">]</span></code></pre></figure>
+
+            <p>Notably absent from the parameter list is volumes, an important feature for mapping files from the host to the container and for sharing storage among containers. I’ll go out on a limb by claiming that volumes are <em>so</em> fundamental to
+                working with Docker that it must be near the top of the feature priority list internally at AWS. When combined with the ability to snapshot and attach/detach EBS volumes this could be very useful.</p>
+
+            <h3 id="running-tasks">Running tasks</h3>
+            <p>The ECS API offers two methods to run a container.</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="c"># Allow ECS to place the container in the cluster</span>
+<span class="gp">$ </span>ecs --region us-east-1 run-task --task-definition sleep360:4 --count 1
+<span class="c"># Specify an instance on which to run the container</span>
+<span class="gp">$ </span>ecs --region us-east-1 start-task --task-definition sleep360:4 --container-instances 90ccf398-f371-432d-b832-052c4daf2357</code></pre></figure>
+
+            <p>The docs state the difference between <code class="highlighter-rouge">run-task</code> and <code class="highlighter-rouge">start-task</code>.</p>
+
+            <blockquote>
+                <p>[Of <code class="highlighter-rouge">run-task</code>] Start a task using random placement and the default Amazon ECS scheduler. If you want to use your own scheduler or place a task on a specific container instance, use <code class="highlighter-rouge">start-task</code>                    instead.</p>
+            </blockquote>
+
+            <p>Upon issuing the start or run command, the containers start more or less instantly if docker has the image for the container it needs to run. It will pull the image from a registry if it does not already exist locally. The task definition
+                spec does not have a parameter for username and password to use for a remote registry, but you could work around this by seeding the image with those credentials.</p>
+
+            <p>The API exposes the information you’d expect about tasks, such as <code class="highlighter-rouge">list-tasks</code> and <code class="highlighter-rouge">describe-tasks</code>. You can describe tasks after they’re finished but you can’t restart
+                them. You also don’t have access to logs, but you can see the exit code of containers.</p>
+
+            <h3 id="resource-control">Resource Control</h3>
+            <p>ECS is capable of managing CPU and memory resources across the cluster. A CPU core is divided into 1024 <strong>units</strong>, which can be individually assigned to tasks. If you try to run a task that consumes more resources than are available,
+                ECS returns an error.</p>
+
+            <figure class="highlight"><pre><code class="language-json" data-lang="json"><span class="p">{</span><span class="w">
+    </span><span class="nt">"failures"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"reason"</span><span class="p">:</span><span class="w"> </span><span class="s2">"RESOURCE:CPU"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"arn"</span><span class="p">:</span><span class="w"> </span><span class="s2">"arn:aws:ecs:us-east-1:792379844846:container-instance/90ccf398-f371-432d-b832-052c4daf2357"</span><span class="w">
+        </span><span class="p">},</span><span class="w">
+        </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"reason"</span><span class="p">:</span><span class="w"> </span><span class="s2">"RESOURCE:CPU"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"arn"</span><span class="p">:</span><span class="w"> </span><span class="s2">"arn:aws:ecs:us-east-1:792379844846:container-instance/aa5436f9-1759-4d93-9822-704ebe761d48"</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">],</span><span class="w">
+    </span><span class="nt">"tasks"</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w">
+</span><span class="p">}</span></code></pre></figure>
+
+            <p>Presumably we’ll see more smarts added to this scheduler over time.</p>
+
+            <h1 id="summing-it-all-up">Summing It All Up</h1>
+            <p>If you’re like me you may have skipped straight to the end past all the details. That’s okay. If you’re not like me and you read it all, then please send me your corrections rather than simply muttering under your breath about my mistakes!</p>
+
+            <p>My first reaction after reading and experimenting was, “that’s it?”, but upon further reflection I’m convinced this is a very nice start. If the goal is to have a managed layer of compute capacity that can run application code in a resilient,
+                secure, repeatable fashion, this platform shows a lot of promise in its simplicity. It exposes just a few primitives: clusters of compute, instances within clusters, and tasks to run. From these pieces it’s possible to assemble a larger
+                system.
+            </p>
+
+            <p>What I like best is that it’s not a complete black box like PaaS offerings. The OS image can be managed manually, the instance types can be customized, the entire OS environment is controllable. If I want to run Logspout on every instance
+                myself I can do that. I can even distribute the compute as I like throughout the network. There can be deep integration with orchestration tools to compose complex inter-related systems.</p>
+
+            <p>But it doesn’t feel done yet.</p>
+
+            <ul>
+                <li>There is no native integration with Autoscaling or ELBs.</li>
+                <li>ECS really should handle the compute on its own, even if it doesn’t control the machine image and OS. If there’s not enough capacity for the tasks I’ve specified, or if there’s more than enough, handle it.</li>
+                <li>There’s no support for restart policy and various other Docker features. Did I already mention volumes?</li>
+                <li>I’d love to see integration with KMS for the potentially sensitive variable data that’s part of the task definition, or better yet combine it with DynamoDB for a service registry.</li>
+                <li>How do I keep an eye on my containers? ECS doesn’t seem to send any kind of notification to SNS if a container fails. I shouldn’t have to monitor this myself.</li>
+            </ul>
+
+            <p>There’s also no registry service and Amazon doesn’t appear to have plans to create one. During the announcement at reInvent they made it clear that they’re partners with Docker and the Docker Hub. It’s too bad because it would be great to
+                have a managed, private registry that was super fast and had a web interface suitable for human use.</p>
+
+            <p>I haven’t used it in anger yet, but I’m excited to see how this service continues to shape up.</p>
+
+        </article>
+
+</body>
+
+</html>

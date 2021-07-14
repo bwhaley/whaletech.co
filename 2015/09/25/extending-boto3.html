@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Extending boto3</title>
+
+    <link rel="stylesheet" href="../../../assets/css/legacy.css">
+    <link rel="canonical" href="/2015/09/25/extending-boto3.html">
+</head>
+
+<body>
+    <div class="post">
+        <header class="post-header">
+            <h1 class="post-title">Extending boto3</h1>
+            <p class="post-meta">
+                posted on Sep 25, 2015
+            </p>
+            <p class="post-meta">
+
+                <span class="post-category post-category-aws"><a href="/tags/#aws">aws</a></span>
+
+                <span class="post-category post-category-boto3"><a href="/tags/#boto3">boto3</a></span>
+
+                <span class="post-category post-category-python"><a href="/tags/#python">python</a></span>
+
+            </p>
+        </header>
+
+        <article class="post-content">
+            <p><a href="https://github.com/boto/boto">boto</a>, the esteemed Python SDK for the AWS API, is being retired in favor of <a href="https://github.com/boto/boto3">boto3</a>, which has been deemed “stable and recommended for general use.” There
+                are at least two big enhancements in boto3:</p>
+
+            <ol>
+                <li>Interfaces to AWS are driven automatically by <a href="https://github.com/boto/botocore/tree/develop/botocore/data">JSON service descriptions</a> rather than hand-coded. As a result, the features provided by the SDK are both more current
+                    and more portable since SDKs in many languages can use the same JSON descriptions.</li>
+                <li><em>Resources</em>, <em>collections</em> and related high-level interfaces offer a more pythonic and object-oriented experience for interacting with AWS.</li>
+            </ol>
+
+            <p>In August, AWS released the <a href="http://boto3.readthedocs.org/en/latest/guide/events.html">Extensibility Guide</a> for boto3. Quoting the guide:</p>
+
+            <blockquote>
+                <p>All of Boto3’s resource and client classes are generated at runtime. This means that you cannot directly inherit and then extend the functionality of these classes because they do not exist until the program actually starts running. However
+                    it is still possible to extend the functionality of classes through Boto3’s event system.</p>
+            </blockquote>
+
+            <p>The documentation goes on to give some trivial examples, but it still wasn’t immediately obvious to me, a relative Python neophyte, how to use this in my own development. I recently had a project where the ability to extend boto3 would simplify
+                my code, and I’d like to share what I did.</p>
+
+            <h2 id="problem-statement">Problem Statement</h2>
+            <p>Many of my clients have complex applications with several AWS VPCs, external networks, and a lot of moving parts with many teams managing the various systems. I am often hired to help with the design and the security of these environments,
+                and in that role I end up doing a lot of vulnerability assessment work.</p>
+
+            <p>Assessments require a lot of data collection about the network architecture, security group structure, permissions, and other settings in the environment. Previously I spent a lot of time clicking through the console and making notes, a tedious
+                process that was both time consuming and error prone.</p>
+
+            <p>I set about coding up a tool to collect as much of the data as possible automatically, and also to draw some conclusions about the security of the system based on the data. I learned how simple it is to extend boto3 using the event system.</p>
+
+            <h2 id="an-example-security-group-rules">An Example: Security Group Rules</h2>
+            <p>The <code class="highlighter-rouge">ec2.SecurityGroup</code> class in boto3 contain an <code class="highlighter-rouge">IpPermissions</code> attribute that represents the group’s inbound rules. The attribute is a list of rules in JSON format,
+                looking something like this:</p>
+
+            <div class="highlighter-rouge"><pre class="highlight"><code>IpPermissions=[
+    {
+        'IpProtocol': 'string',
+        'FromPort': 123,
+        'ToPort': 123,
+        'UserIdGroupPairs': [
+            {
+                'UserId': 'string',
+                'GroupName': 'string',
+                'GroupId': 'string'
+            },
+        ],
+        'IpRanges': [
+            {
+                'CidrIp': 'string'
+            },
+        ],
+        'PrefixListIds': [
+            {
+                'PrefixListId': 'string'
+            },
+        ]
+    }
+]
+</code></pre>
+            </div>
+
+            <p>I wanted to analyze the rules, and converting this JSON blob to a proper Python object would allow me to work with individual rules more easily.</p>
+
+            <p>To do this, I extend boto3 with two classes: <code class="highlighter-rouge">SecurityGroupRules</code>, used to add an attribute called <code class="highlighter-rouge">rules</code> to <code class="highlighter-rouge">SecurityGroup</code>, and
+                then <code class="highlighter-rouge">SecurityGroupRule</code> (note singular vs plural) to represent a single rule. The <code class="highlighter-rouge">rules</code> attribute can be created when the object is initialized. Something like
+                this:
+            </p>
+
+            <figure class="highlight"><pre><code class="language-python" data-lang="python"><table style="border-spacing: 0"><tbody><tr><td class="gutter gl" style="text-align: right"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38</pre></td>
+                <td class="code"><pre><span class="k">class</span> <span class="nc">SecurityGroupRules</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="s">"""Adds the attribute `rules` to SecurityGroup. `rules` is a list of
+        SecurityGroupRule objects.
+        """</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SecurityGroupRules</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rules</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ip_permissions</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">rules</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rules</span>
+
+    <span class="nd">@rules.setter</span>
+    <span class="k">def</span> <span class="nf">rules</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ip_permissions</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">ip_permissions</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">list</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="nb">TypeError</span><span class="p">(</span><span class="s">"Expected list, found </span><span class="si">%</span><span class="s">s"</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">ip_permissions</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rules</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">rule</span> <span class="ow">in</span> <span class="n">ip_permissions</span><span class="p">:</span>
+            <span class="n">protocol</span> <span class="o">=</span> <span class="n">rule</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">'IpProtocol'</span><span class="p">)</span>
+            <span class="n">from_port</span> <span class="o">=</span> <span class="n">rule</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">'FromPort'</span><span class="p">)</span>
+            <span class="n">to_port</span> <span class="o">=</span> <span class="n">rule</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">'ToPort'</span><span class="p">)</span>
+            <span class="n">source_groups</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">source_group</span> <span class="ow">in</span> <span class="n">rule</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">'UserIdGroupPairs'</span><span class="p">):</span>
+                <span class="n">source_groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SourceGroup</span><span class="p">(</span><span class="n">user_id</span><span class="o">=</span><span class="n">source_group</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">'UserId'</span><span class="p">),</span>
+                                                 <span class="n">group_name</span><span class="o">=</span><span class="n">source_group</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">'GroupName'</span><span class="p">),</span>
+                                                 <span class="n">group_id</span><span class="o">=</span><span class="n">source_group</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">'GroupId'</span><span class="p">)))</span>
+            <span class="n">cidr_ranges</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">ip_range</span> <span class="ow">in</span> <span class="n">rule</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">'IpRanges'</span><span class="p">):</span>
+                <span class="n">cidr_ranges</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ip_range</span><span class="p">[</span><span class="s">'CidrIp'</span><span class="p">])</span>
+            <span class="n">prefix_lists</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">pfx</span> <span class="ow">in</span> <span class="n">rule</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">'PrefixListIds'</span><span class="p">):</span>
+                <span class="n">prefix_lists</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pfx</span><span class="p">[</span><span class="s">'PrefixListId'</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rules</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SecurityGroupRule</span><span class="p">(</span><span class="n">protocol</span><span class="o">=</span><span class="n">protocol</span><span class="p">,</span>
+                                                 <span class="n">from_port</span><span class="o">=</span><span class="n">from_port</span><span class="p">,</span>
+                                                 <span class="n">to_port</span><span class="o">=</span><span class="n">to_port</span><span class="p">,</span>
+                                                 <span class="n">source_groups</span><span class="o">=</span><span class="n">source_groups</span><span class="p">,</span>
+                                                 <span class="n">cidr_ranges</span><span class="o">=</span><span class="n">cidr_ranges</span><span class="p">,</span>
+                                                 <span class="n">prefix_lists</span><span class="o">=</span><span class="n">prefix_lists</span><span class="p">))</span><span class="w">
+</span></pre></td>
+                </tr>
+                </tbody>
+                </table>
+                </code>
+                </pre>
+            </figure>
+
+            <p>The setter method extracts the fields from the <code class="highlighter-rouge">ip_permissions</code> JSON blob and creates a <code class="highlighter-rouge">SecurityGroupRule</code> object for every rule.</p>
+
+            <p><code class="highlighter-rouge">SecurityGroupRule</code> looks like:</p>
+
+            <figure class="highlight"><pre><code class="language-python" data-lang="python"><table style="border-spacing: 0"><tbody><tr><td class="gutter gl" style="text-align: right"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97</pre></td>
+                <td class="code"><pre><span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">namedtuple</span>
+<span class="n">SourceGroup</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s">'SourceGroup'</span><span class="p">,</span> <span class="s">'user_id group_name group_id'</span><span class="p">)</span>
+<span class="n">CidrRange</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s">'CidrRange'</span><span class="p">,</span> <span class="s">'cidr'</span><span class="p">)</span>
+<span class="n">PrefixList</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s">'PrefixList'</span><span class="p">,</span> <span class="s">'prefix_list'</span><span class="p">)</span>
+<span class="n">PROTOCOLS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s">'-1'</span><span class="p">,</span>
+    <span class="s">'tcp'</span><span class="p">,</span>
+    <span class="s">'udp'</span><span class="p">,</span>
+    <span class="s">'icmp'</span>
+<span class="p">]</span>
+
+<span class="k">class</span> <span class="nc">SecurityGroupRule</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">protocol</span><span class="p">,</span> <span class="n">from_port</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">to_port</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">source_groups</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">cidr_ranges</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">prefix_lists</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="s">"""See also http://boto3.readthedocs.org/en/latest/reference/services/ec2.html#securitygroup
+        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">protocol</span> <span class="o">=</span> <span class="n">protocol</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">from_port</span> <span class="o">=</span> <span class="n">from_port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">source_groups</span> <span class="o">=</span> <span class="n">source_groups</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cidr_ranges</span> <span class="o">=</span> <span class="n">cidr_ranges</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prefix_lists</span> <span class="o">=</span> <span class="n">prefix_lists</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">protocol</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_protocol</span>
+
+    <span class="nd">@protocol.setter</span>
+    <span class="k">def</span> <span class="nf">protocol</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">PROTOCOLS</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="nb">TypeError</span><span class="p">(</span><span class="s">'Encountered an unknown protocol </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="n">value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_protocol</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">from_port</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_from_port</span>
+
+    <span class="nd">@from_port.setter</span>
+    <span class="k">def</span> <span class="nf">from_port</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">value</span> <span class="ow">or</span> <span class="n">port_is_valid</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_from_port</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="nb">TypeError</span><span class="p">(</span><span class="s">'Encountered an unknown port </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="n">value</span><span class="p">)</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">to_port</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_port</span>
+
+    <span class="nd">@to_port.setter</span>
+    <span class="k">def</span> <span class="nf">to_port</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">value</span> <span class="ow">or</span> <span class="n">port_is_valid</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_to_port</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="nb">TypeError</span><span class="p">(</span><span class="s">'Encountered an unknown port </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">source_groups</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_groups</span>
+
+    <span class="nd">@source_groups.setter</span>
+    <span class="k">def</span> <span class="nf">source_groups</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="s">"""List of SourceGroup() named tuples
+        """</span>
+        <span class="k">if</span> <span class="n">values</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">SourceGroup</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="nb">TypeError</span><span class="p">(</span><span class="s">'Expect a list of source groups but found </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="n">v</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_source_groups</span> <span class="o">=</span> <span class="n">values</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">cidr_ranges</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cidr_ranges</span>
+
+    <span class="nd">@cidr_ranges.setter</span>
+    <span class="k">def</span> <span class="nf">cidr_ranges</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="s">"""List of CidrRange() named tuples
+        """</span>
+        <span class="n">valid_cidr</span> <span class="o">=</span> <span class="s">"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])</span><span class="err">\</span><span class="s">.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(</span><span class="err">\</span><span class="s">/([0-9]|[1-2][0-9]|3[0-2]))$"</span>
+        <span class="k">if</span> <span class="n">values</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">valid_cidr</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="nb">TypeError</span><span class="p">(</span><span class="s">'Expect a valid CIDR IP range but found </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="n">v</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cidr_ranges</span> <span class="o">=</span> <span class="n">values</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">prefix_lists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefix_lists</span>
+
+    <span class="nd">@prefix_lists.setter</span>
+    <span class="k">def</span> <span class="nf">prefix_lists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="s">"""List of PrefixList() named tuples
+        """</span>
+        <span class="k">if</span> <span class="n">values</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">PrefixList</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="nb">TypeError</span><span class="p">(</span><span class="s">'Expect a list of PrefixList() but found </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prefix_lists</span> <span class="o">=</span> <span class="n">values</span>
+
+<span class="k">def</span> <span class="nf">port_is_valid</span><span class="p">(</span><span class="n">port</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">port</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">port</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="ow">or</span> <span class="mi">1</span> <span class="o">&lt;=</span> <span class="n">port</span> <span class="o">&lt;=</span> <span class="mi">65535</span><span class="p">)</span><span class="w">
+</span></pre></td>
+                </tr>
+                </tbody>
+                </table>
+                </code>
+                </pre>
+            </figure>
+
+            <p>Great, so how do we use these classes? Enter the event system magic: register the <code class="highlighter-rouge">SecurityGroupRules</code> class to be added when boto3 instantiates a <code class="highlighter-rouge">SecurityGroup</code>.</p>
+
+            <figure class="highlight"><pre><code class="language-python" data-lang="python"><table style="border-spacing: 0"><tbody><tr><td class="gutter gl" style="text-align: right"><pre class="lineno">1
+2
+3
+4
+5
+6
+7</pre></td>
+                <td class="code"><pre><span class="k">def</span> <span class="nf">get_ec2_handle</span><span class="p">():</span>
+    <span class="n">session</span> <span class="o">=</span> <span class="n">Session</span><span class="p">()</span>
+    <span class="n">session</span><span class="o">.</span><span class="n">events</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s">'creating-resource-class.ec2.SecurityGroup'</span><span class="p">,</span> <span class="n">add_custom_sg_class</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">session</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="s">'ec2'</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">add_custom_sg_class</span><span class="p">(</span><span class="n">base_classes</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">base_classes</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">SecurityGroupRules</span><span class="p">)</span><span class="w">
+</span></pre></td>
+                </tr>
+                </tbody>
+                </table>
+                </code>
+                </pre>
+            </figure>
+
+            <p>Whenever a SecurityGroup object is created using the handle returned from <code class="highlighter-rouge">get_ec2_handle()</code>, SecurityGroupRules will also be instantiated. As a trivial example:</p>
+
+            <figure class="highlight"><pre><code class="language-python" data-lang="python"><table style="border-spacing: 0"><tbody><tr><td class="gutter gl" style="text-align: right"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18</pre></td>
+                <td class="code"><pre><span class="n">ec2_handle</span> <span class="o">=</span> <span class="n">get_ec2_handle</span><span class="p">()</span>
+
+<span class="c"># Get all the instances in an account</span>
+<span class="c"># Use list() to force boto3 to make calls to AWS now</span>
+<span class="c"># May take a some time if there are many instances!</span>
+<span class="n">instances</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">ec2_handle</span><span class="o">.</span><span class="n">instances</span><span class="o">.</span><span class="nb">all</span><span class="p">())</span>
+
+<span class="c"># Get a unique list of security groups from all in-scope instances</span>
+<span class="n">all_groups</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">instances</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">sg_id</span> <span class="ow">in</span> <span class="n">i</span><span class="o">.</span><span class="n">security_group_ids</span><span class="p">:</span>
+        <span class="n">all_groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sg_id</span><span class="p">)</span>
+
+<span class="n">all_groups</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">all_groups</span><span class="p">)</span>
+
+<span class="n">security_groups</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">sg_id</span> <span class="ow">in</span> <span class="n">all_groups</span><span class="p">:</span>
+    <span class="n">security_groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ec2_handle</span><span class="o">.</span><span class="n">SecurityGroup</span><span class="p">(</span><span class="n">sg_id</span><span class="p">))</span><span class="w">
+</span></pre></td>
+                </tr>
+                </tbody>
+                </table>
+                </code>
+                </pre>
+            </figure>
+
+            <p><code class="highlighter-rouge">security_groups</code> is a list of <code class="highlighter-rouge">SecurityGroup</code> objects, each of which has a <code class="highlighter-rouge">rules</code> attribute that is a list of <code class="highlighter-rouge">SecurityGroupRule</code>                objects. It’s now trivial to list all rules in all groups:</p>
+
+            <figure class="highlight"><pre><code class="language-python" data-lang="python"><table style="border-spacing: 0"><tbody><tr><td class="gutter gl" style="text-align: right"><pre class="lineno">1
+2
+3</pre></td>
+                <td class="code"><pre><span class="k">for</span> <span class="n">sg</span> <span class="ow">in</span> <span class="n">security_groups</span><span class="p">:</span>
+  <span class="k">for</span> <span class="n">rule</span> <span class="ow">in</span> <span class="n">sg</span><span class="o">.</span><span class="n">rules</span><span class="p">:</span>
+    <span class="k">print</span> <span class="n">rule</span><span class="o">.</span><span class="n">protocol</span><span class="w">
+</span></pre></td>
+                </tr>
+                </tbody>
+                </table>
+                </code>
+                </pre>
+            </figure>
+
+            <p>We can also easily search the rules for insecure configurations, which is more detail than I planned for this post. So what’s considered an insecure configuration? Well that’s also not really the point of the post, but since you’ve asked my
+                opinion…
+            </p>
+
+            <ul>
+                <li>All ports to the zero network (0.0.0.0/0) (obvious)</li>
+                <li>Any ports to the zero network should at least be noted</li>
+                <li>Access to all or many ports for a large CIDR range, where large is my somewhat arbitrary definition - <code class="highlighter-rouge">/24</code> or larger.</li>
+            </ul>
+
+            <p>The idea is that even internal to a VPC, security groups should be as restrictive as possible.</p>
+
+            <h2 id="wrapping-up">Wrapping Up</h2>
+            <p>The boto3 event system is a novel approach to allow more pythonic interactions with AWS resources. This example showed how to essentially subclass <code class="highlighter-rouge">ec2.SecurityGroup</code> to allow better analysis of rules.
+                I also subclass <code class="highlighter-rouge">ec2.Instance</code> to extract additional instance properties which aren’t immediately available, like IAM policies and instance userdata.</p>
+
+            <p>Please hassle me about something in the comments or <a href="https://twitter.com/iAmTheWhaley">on Twitter</a> if you want. Thanks for reading.</p>
+
+        </article>
+
+</body>
+
+</html>

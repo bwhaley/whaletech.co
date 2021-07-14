@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Limiting SSH access to port forwarding only</title>
+
+    <link rel="stylesheet" href="../../../assets/css/legacy.css">
+    <link rel="canonical" href="/2014/07/02/limiting-ssh-access-to-port-forwarding-only.html">
+</head>
+
+<body>
+    <div class="post">
+        <header class="post-header">
+            <h1 class="post-title">Limiting SSH access to port forwarding only</h1>
+            <p class="post-meta">
+                posted on Jul 2, 2014
+            </p>
+            <p class="post-meta">
+
+                <span class="post-category post-category-security"><a href="/tags/#security">security</a></span>
+
+                <span class="post-category post-category-ssh"><a href="/tags/#ssh">ssh</a></span>
+
+            </p>
+        </header>
+
+        <article class="post-content">
+            <p>It’s nothing new or novel but I don’t recall this sort of minutiae off the top of my head.</p>
+
+            <p>Recently I needed to limit SSH access for a service account (jenkins) to only be able to tunnel to a specific port on a specific host. I was able to do this using <code class="highlighter-rouge">.ssh/authorized_keys</code> file wizardry. Behold:</p>
+
+            <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nb">command</span><span class="o">=</span><span class="s2">"echo 'This account can only be used for database access'"</span>,no-agent-forwarding,no-X11-forwarding,permitopen<span class="o">=</span><span class="s2">"&lt;mysqlhost&gt;:3306"</span> ssh-rsa AAAAB...[snip]</code></pre></figure>
+
+            <p>All the details are in the ridiculously complete <a href="http://www.openbsd.org/cgi-bin/man.cgi?query=sshd&amp;sektion=8">sshd man page</a>.</p>
+
+        </article>
+
+</body>
+
+</html>

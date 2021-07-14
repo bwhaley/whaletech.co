@@ -1,0 +1,140 @@
+/* global */
+
+@import url('https://fonts.googleapis.com/css?family=Roboto');
+.grid-2 {
+    display: grid;
+    grid-template-columns: 35% 1fr;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto', sans-serif;
+    background-color: #333333;
+    color: #afafa3;
+}
+
+h2,
+.white {
+    color: #BABABA;
+}
+
+a {
+    color: #7A7C80;
+    text-decoration: none;
+}
+
+
+/* section 1 */
+
+.section-1 {
+    padding-top: 25%;
+    text-align: center;
+}
+
+.section-1 p {
+    font-size: 1.1rem;
+    padding-bottom: 10px;
+    margin: 0;
+}
+
+.section-1 h2 {
+    font-size: 1.7rem;
+    margin-bottom: 10px;
+    white-space: pre;
+}
+
+.section-1 a {
+    font-size: 1.5rem;
+    padding: 10px;
+}
+
+.section-1 a:hover {
+    color: #fff;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.white:hover {
+    position: relative;
+    padding-left: 10px;
+}
+
+
+/* section 2 */
+
+.section-2 {
+    padding-top: 10vh;
+    width: 75%;
+}
+
+.section-2 h2 {
+    font-size: 1.7rem;
+    margin-bottom: 10px;
+}
+
+.section-2 p {
+    font-size: 1.1rem;
+    padding-bottom: 10px;
+    margin: 0;
+}
+
+.section-2-icons ul {
+    list-style-type: none;
+    margin: 0;
+}
+
+.section-2-icons li {
+    margin: 10px 10px 10px 10px;
+}
+
+.section-2 blockquote {
+    display: block;
+    border-left: 5px solid #ff6600;
+    position: relative;
+    font-size: .9rem;
+    text-align: justify;
+    padding: 5px 0px 5px 15px;
+}
+
+
+/* projects section */
+
+.grid-projects {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    grid-gap: 10px;
+    padding-top: 1em;
+    padding-bottom: 1em;
+    align-items: center;
+}
+
+.projects-icon {
+    text-align: center;
+}
+
+
+/* media queres */
+
+@media(max-width:780px) {
+    .grid-2 {
+        grid-template-columns: 1fr;
+    }
+    .grid-projects {
+        grid-template-columns: 1fr;
+    }
+    .section-1 {
+        padding: 0;
+        padding-top: 5rem;
+    }
+    .section-2 {
+        padding: 0;
+        padding-left: 1.5rem;
+        padding-top: 2rem;
+    }
+    .grid-projects {
+        padding: 0;
+        padding-left: 1.5rem;
+        padding-top: 2rem;
+    }
+}

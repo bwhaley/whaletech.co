@@ -1,7 +1,151 @@
----
-layout: default
----
-<div class="sidebar">
-  <a href="/"><img class="pure-img-responsive" src="/images/{{ site.logo }}"></a>
-  <h2 class="brand-tagline">{{ site.description }}</h2>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="shortcut icon" href="assets/images/favicon.png" type="image/png">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <title>WhaleTech</title>
+</head>
+
+<body>
+    <div class="grid-2">
+        <div class="section-1">
+            <img src="assets/images/tailonly-sm.png">
+            <h2>Ben Whaley</h2>
+            <p>Oregon, USA</p>
+            <a href="https://github.com/bwhaley"><i class="fab fa-github"></i></a>
+            <a href="https://gitlab.com/bwhaley"><i class="fab fa-gitlab"></i></a>
+            <a href="https://twitter.com/iAmTheWhaley"><i class="fab fa-twitter"></i></a>
+            <a href="https://linkedin.com/in/benwhaley"><i class="fab fa-linkedin"></i></a>
+            <a href="https://keybase.io/bwhaley"><i class="fab fa-keybase"></i></a>
+        </div>
+        <div class="section-2">
+            <p>
+                Hi, I'm Ben. <i class="fa fa-handshake"></i> I've been working professionally in software and technology since 2004.
+                <blockquote>
+                    Ben Whaley is a principal software engineer at <a href="https://gruntwork.io">Gruntwork.io</a>. Ben founded WhaleTech, a freelancing consulting business focused on cloud architecture, software delivery, and systems automation. Ben
+                    ran the network and systems for Apigee, a globally-distributed API management platform built on Amazon Web Services. He also helped build and operate the AWS-hosted back end services for Anki, a robotics and artificial intelligence
+                    company.
+                    <br /><br />Additionally, Ben is co-author of the UNIX and Linux System Administration Handbook, the de facto standard text on Linux administration, and is the author of two educational videos: Linux Web Operations and Linux System
+                    Administration. Ben was previously a Red Hat Certified Engineer (RHCE) and a Certified Information Systems Security Professional (CISSP).
+                </blockquote>
+            </p>
+            <p>
+                <div class="section-2-icons">
+                    Areas of interest:
+                    <ul>
+                        <li><i class="fa fa-server"> systems</i></li>
+                        <li><i class="fa fa-network-wired"> networks</i></li>
+                        <li><i class="fa fa-cloud"> cloud</i></li>
+                        <li><i class="fa fa-lock"> security</i></li>
+                        <li><i class="fa fa-pen"> technical writing</i></li>
+                        <li><i class="fa fa-chalkboard-teacher"> training</i></li>
+                    </ul>
+                </div>
+                Need some help? <a href="mailto:bwhaley+web@gmail.com">Get in touch</a>.
+            </p>
+
+            <h2><i class="fas fa-align-right fa-edit fa-1x white"></i> Writing</h2>
+            <ul>
+                <li>
+                    Co-author of <a href="https://admin.com">The UNIX & Linux System Administration Handbook</a>, the de facto system administration reference book. Now in its 5th edition.
+                </li>
+                <li>
+                    A few <a href="archive/index.html">technical blog posts</a>, some of which became <a href="2016/04/07/encryption-ephemeral-volumes-with-kms.html">rather</a> <a href="2014/10/02/reference-vpc-architecture.html">popular</a>.
+                </li>
+                <li>
+                    Articles on <a href="https://medium.com/@benwhaley">the Gruntwork blog</a>.
+                </li>
+                <li>
+                    Article in INSECURE magazine <a href="assets/INSECURE-Mag-15.pdf">[WARNING: large PDF link]</a> on the subject of enterprise software security.
+                </li>
+            </ul>
+            <h2><i class="fas fa-align-right fa-comment fa-1x white"></i> Speaking</h2>
+            <ul>
+                <li>
+                    A collection of my slides on <a href="https://speakerdeck.com/bwhaley">Speakerdeck</a>.
+                </li>
+                <li>
+                    Interview with me on the <a href="https://tutorialinux.com/">tutorial linux</a><a href="https://www.youtube.com/watch?v=3pwD3BgKm1s">Youtube channel</a>. Thanks to Dave for having me on.
+                </li>
+                <li>
+                    Talk at AWS re:Invent 2017 <a href="https://www.youtube.com/watch?v=of0BECWQfxE&t=2s"><i>And You Thought You Knew EC2.</i></a>
+                </li>
+            </ul>
+            <h2><i class="fas fa-align-right fa-code fa-1x white"></i> Code</h2>
+            <ul>
+                <li>
+                    <a href="https://github.com/bwhaley/ssmsh"><b>ssmsh</b></a>, an interactive shell for the EC2 Parameter Store, written in Go.
+                </li>
+                <li>
+                    Contributed to several open source tools at Gruntwork, including <a href="https://terragrunt.gruntwork.io"><b>Terragrunt</b></a>, <a href="https://terratest.gruntwork.io"><b>Terratest</b></a>, <a href="https://github.com/gruntwork-io/cloud-nuke"><b>cloud-nuke</b></a>,
+                    and <a href="https://github.com/gruntwork-io/kubergrunt"><b>kubergrunt</b></a>, among others.
+                </li>
+                <li>
+                    Profile on <a href="https://stackoverflow.com/users/2430241/ben-whaley">StackOverflow.</a>
+                </li>
+            </ul>
+            <h2><i class="fas fa-align-right fa-tasks fa-1x white"></i> Projects</h2>
+            <div class="grid-projects">
+                <div class="projects-icon">
+                    <img src="assets/images/gruntwork-ref-arch.png">
+                </div>
+                <div>
+                    Helped build the <a href="https://gruntwork.io/reference-architecture">Gruntwork Reference Architecture</a>, a battle-tested, production-grade, end-to-end multi-account AWS environment provisioned using Terraform.
+                </div>
+            </div>
+            <div class="grid-projects">
+                <div class="projects-icon">
+                    <img src="assets/images/gruntwork-cis.png">
+                </div>
+                <div>
+                    While at Gruntwork, implemented <a href="https://gruntwork.io/achieve-compliance">the CIS AWS Foundations Benchmark</a> using Terraform and Terragrunt.
+                </div>
+            </div>
+            <div class="grid-projects">
+                <div class="projects-icon">
+                    <img src="assets/images/livelessons.png">
+                </div>
+                <div>
+                    Recorded two videos for Addison-Wesley/Pearson, listed on O'Reilly. <a href="https://www.oreilly.com/library/view/linux-system-administration/9780133551334/">Linux System Administration</a> and <a href="https://www.oreilly.com/library/view/linux-system-administration/9780133551334/">Linux Web Operations</a>.
+                </div>
+            </div>
+            <h2><i class="fas fa-align-right fa-award fa-1x white"></i> Recognition</h2>
+            <div class="grid-projects">
+                <div class="projects-icon">
+                    <img src="assets/images/hero-avatar.png">
+                </div>
+                <div>
+                    <a href="https://aws.amazon.com/developer/community/heroes/ben-whaley/">Recognized by Amazon Web Services as a Community Hero since 2014</a> for fostering developer interest in AWS through articles, books, talks, and tools. 7x re:Invent
+                    attendee.
+                </div>
+            </div>
+            <h2><i class="fas fa-align-right fa-heart fa-1x white"></i> Endorsements</h2>
+            <blockquote>
+                In a matter of months his leadership and follow-through created change which was not possible in his absence. His passion for his work and excellent communication brought our team together and our work excelled due to his desire for accuracy and quality.
+                -- Megan Modl, former colleague
+            </blockquote>
+            <blockquote>
+                Ben is the best information security and operations professional I have worked with. Ben understands AWS in and out. I consider myself lucky to have worked with such a focused and objective leader. Ben is very honest, a team player and follows through.
+                Ben would be an asset to any team. --Laban Okune, former colleague
+            </blockquote>
+            <blockquote>
+                Ben is one of the most skilled systems architects I have ever worked with. He was extremely effective at troubleshooting and diagnostics, configuring monitoring and alerting, picking up and incorporating new technologies all while moving the moving the
+                architecture forward. -- Nate McCall, former colleague
+            </blockquote>
+            <blockquote>
+                What makes Ben unique is his ability to consistently understand and solve challenges, with unparalleled professionalism and personal character. He was extremely effective at troubleshooting and diagnostics, configuring monitoring and alerting, picking
+                up and incorporating new technologies all while moving the moving the -- Michael Roscoe, former client
+            </blockquote>
+        </div>
+    </div>
+</body>
+
+</html>
+</body>
+
+</html>
