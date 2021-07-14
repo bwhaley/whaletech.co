@@ -79,13 +79,8 @@ a {
     margin: 0;
 }
 
-.section-2-icons ul {
+.section-2.icons ul {
     list-style-type: none;
-    margin: 0;
-}
-
-.section-2-icons li {
-    margin: 10px 10px 10px 10px;
 }
 
 .section-2 blockquote {
@@ -133,7 +128,8 @@ a {
 
 .section-2.grid-small {
     display: grid;
-    grid-template-columns: 25% 1fr;
+    grid-template-columns: 50% 1fr;
+    grid-gap: 20px;
     padding-top: 1em;
     padding-bottom: 1em;
     align-items: center;
@@ -146,24 +142,22 @@ a {
     .grid-2 {
         grid-template-columns: 1fr;
     }
-    .grid-projects {
+    .section-2.grid-projects {
         grid-template-columns: 1fr;
+    }
+    .section-2.grid-small {
+        grid-template-columns: 30% 1fr;
+        padding: 10px 10px 10px 10px;
+        margin: 10px 10px 10px 10px;
     }
     .section-1 {
         padding: 0;
         padding-top: 5rem;
+        padding: 0;
+        padding-right: 1rem;
+        padding-top: 2rem;
     }
     .section-2 {
-        padding: 0;
-        padding-left: 1.5rem;
-        padding-top: 2rem;
-    }
-    .section-2.grid-projects {
-        padding: 0;
-        padding-left: 1.5rem;
-        padding-top: 2rem;
-    }
-    .section-2.grid-small {
         padding: 0;
         padding-left: 1.5rem;
         padding-top: 2rem;
