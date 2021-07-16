@@ -1,15 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html> <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <link rel="shortcut icon" href="assets/images/favicon.png" type="image/png">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css"
         integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
     <link rel="stylesheet" href="assets/css/style.css">
-    <script src="assets/js/terminal.js"></script>
+    <script src="assets/js/jquery.min.js"></script>
+    <script src="assets/js/jquery.terminal.min.js"></script>
+    <link rel="stylesheet" href="assets/css/jquery.terminal.min.css" />
     <title>WhaleTech</title>
 </head>
 
@@ -28,7 +29,17 @@
             <a href="mailto:bwhaley@gmail.com?subject=I want to talk to you about ..."><i
                     class="fas fa-envelope"></i></a>
             <br>
-            <div id="terminal"></div>
+            <div class="section-1 terminal"></div>
+            <script>
+                $('.section-1.terminal').terminal({
+                    hello: function(what) {
+                        this.echo('Hello, ' + what +
+                                  '. Welcome to this terminal.');
+                    }
+                }, {
+                    greetings: 'Greetings, visitor'
+                });
+                </script>
         </div>
         <div class="section-2">
             <p>Hi, I'm Ben. <i class="fa fa-handshake"></i></p>
