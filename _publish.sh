@@ -8,7 +8,7 @@ s3cmd sync --acl-public --exclude '*.*' --include 'index.html' . s3://www.whalet
 s3cmd sync --acl-public assets/ s3://www.whaletech.co/assets/
 s3cmd sync --acl-public archive/ s3://www.whaletech.co/archive/
 
-# Invalidate the cloudformation distribution to force a refresh
+# Invalidate the cloudfront distribution to force a refresh
 distribution_id="EIE5WI5MRUPL5"
 invalidation_batch_file="/tmp/batch.json"
 cat << EOF > ${invalidation_batch_file}
