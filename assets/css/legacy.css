@@ -4,7 +4,7 @@
 */
 /* buttons */
 .post-category-first-post {
-  background: #BABAB1; }
+  background: #333333; }
 
 /*
    Breakpoints
@@ -765,7 +765,7 @@ so we can ignore the csslint warning.
   padding: 0.5em 0.6em;
   display: inline-block;
   border: 1px solid #ccc;
-  box-shadow: inset 0 1px 3px #ddd;
+  box-shadow: inset 0 1px 3px #333;
   border-radius: 4px;
   vertical-align: middle;
   -webkit-box-sizing: border-box;
@@ -780,7 +780,7 @@ since IE8 won't execute CSS that contains a CSS3 selector.
   padding: 0.5em 0.6em;
   display: inline-block;
   border: 1px solid #ccc;
-  box-shadow: inset 0 1px 3px #ddd;
+  box-shadow: inset 0 1px 3px #333;
   border-radius: 4px;
   -webkit-box-sizing: border-box;
   -moz-box-sizing: border-box;
@@ -2502,18 +2502,18 @@ svg:not(:root) {
   font-size: 0.875rem;
   font-family: "nexa bold", sans-serif;
   font-weight: 700;
-  background-color: #111;
+  background-color: #afafa3;
   color: #fff;
   border-width: 2px !important;
   border-style: solid !important;
-  border-color: #111;
+  border-color: #afafa3;
   text-decoration: none !important;
   border-radius: 3px; }
   .btn:visited {
     color: #fff; }
   .btn:hover {
     background-color: #fff;
-    color: #111; }
+    color: #afafa3; }
 
 /* Success button */
 .btn-success {
@@ -2581,7 +2581,7 @@ svg:not(:root) {
 html, body {
   height: 100%;
   margin: 0;
-  background: #ddd; }
+  background: #333333; }
 
 a {
   text-decoration: none;
@@ -2590,7 +2590,7 @@ a {
 a:hover,
 a:focus {
   text-decoration: underline;
-  color: #111; }
+  color: #afafa3; }
 
 h1 {
   font-family: sans-serif;
@@ -2601,18 +2601,18 @@ h2 {
   font-weight: lighter; }
 
 h2 a {
-  color: #111; }
+  color: #afafa3; }
 
 h2 a:hover, a:active {
   text-decoration: underline; }
 
 h3 {
   font-weight: 100;
-  color: #111; }
+  color: #afafa3; }
 
 h3 a:hover, a:active {
   text-decoration: underline;
-  text-decoration-color: #111; }
+  text-decoration-color: #afafa3; }
 
 /* LAYOUT CSS */
 .pure-img-responsive {
@@ -2685,7 +2685,7 @@ h3 a:hover, a:active {
 
 .content {
   padding: 2em 1em 0;
-  background: #ddd;
+  background: #333333;
   margin: 10;
   height: 100%; }
 
@@ -2698,7 +2698,7 @@ h3 a:hover, a:active {
   font-family: Sans-Serif;
   font-weight: lighter;
   font-size: 2em;
-  color: #111;
+  color: #afafa3;
   margin-bottom: 0.2em; }
 
 .post-avatar {
